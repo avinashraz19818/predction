@@ -44,23 +44,33 @@ class DatabaseManager:
 
     def add_channel(self, channel_id, title="", game_id="wingo_1m", register_link=None, promo_text=None):
         channel_id = str(channel_id).strip()
+        existing = self.get_channel(channel_id)
+        existing_buttons = existing.get("buttons", []) if existing else []
+
         data = {
             "channel_id": channel_id,
-            "title": title or f"Channel {channel_id}",
+            "title": title or (existing.get("title") if existing else f"Channel {channel_id}"),
             "game_id": game_id,
             "is_active": True,
-            "register_link": register_link or config.DEFAULT_REGISTER_LINK,
-            "promo_text": promo_text or config.DEFAULT_PROMO_TEXT,
-            "current_level": 1,
+            "register_link": register_link or (existing.get("register_link") if existing else config.DEFAULT_REGISTER_LINK),
+            "promo_text": promo_text or (existing.get("promo_text") if existing else config.DEFAULT_PROMO_TEXT),
+            "buttons": existing_buttons,  # Empty by default! Only buttons added by admin will appear
+            "current_level": existing.get("current_level", 1) if existing else 1,
             "max_level": 5,
-            "stats": {
+            "stats": existing.get("stats", {
+                "total_predictions": 0,
+                "wins": 0,
+                "losses": 0,
+                "current_streak": 0,
+                "best_streak": 0
+            }) if existing else {
                 "total_predictions": 0,
                 "wins": 0,
                 "losses": 0,
                 "current_streak": 0,
                 "best_streak": 0
             },
-            "created_at": datetime.utcnow(),
+            "created_at": existing.get("created_at", datetime.utcnow()) if existing else datetime.utcnow(),
             "updated_at": datetime.utcnow()
         }
 
@@ -85,6 +95,8 @@ class DatabaseManager:
                 doc = self.db.channels.find_one({"channel_id": channel_id})
                 if doc:
                     doc.pop("_id", None)
+                    if "buttons" not in doc:
+                        doc["buttons"] = []
                     return doc
             except Exception as e:
                 logger.error(f"Error getting channel from Mongo: {e}")
@@ -97,6 +109,8 @@ class DatabaseManager:
                 channels = []
                 for c in cursor:
                     c.pop("_id", None)
+                    if "buttons" not in c:
+                        c["buttons"] = []
                     channels.append(c)
                 # Keep memory synced
                 for c in channels:
@@ -130,6 +144,40 @@ class DatabaseManager:
             except Exception as e:
                 logger.error(f"Error updating channel: {e}")
 
+    # ================= CHANNEL BUTTON MANAGEMENT =================
+
+    def add_channel_button(self, channel_id: str, text: str, url: str, style: str = None, icon_custom_emoji_id: str = None):
+        """Adds a custom inline button with optional Telegram native color style (success/danger/primary)"""
+        ch = self.get_channel(channel_id)
+        if not ch:
+            return []
+        buttons = ch.get("buttons", [])
+        btn_obj = {
+            "text": text.strip(),
+            "url": url.strip(),
+            "style": style if style in ("success", "danger", "primary") else None,
+            "icon_custom_emoji_id": icon_custom_emoji_id
+        }
+        buttons.append(btn_obj)
+        self.update_channel(channel_id, {"buttons": buttons})
+        return buttons
+
+    def remove_channel_button(self, channel_id: str, index: int):
+        """Removes a button by index from the channel's buttons list"""
+        ch = self.get_channel(channel_id)
+        if not ch:
+            return []
+        buttons = ch.get("buttons", [])
+        if 0 <= index < len(buttons):
+            buttons.pop(index)
+            self.update_channel(channel_id, {"buttons": buttons})
+        return buttons
+
+    def clear_channel_buttons(self, channel_id: str):
+        """Removes all buttons from a channel so messages are sent with zero buttons"""
+        self.update_channel(channel_id, {"buttons": []})
+        return []
+
     def remove_channel(self, channel_id):
         channel_id = str(channel_id).strip()
         self._memory_channels.pop(channel_id, None)
@@ -153,7 +201,7 @@ class DatabaseManager:
     def record_channel_result(self, channel_id, is_win: bool):
         ch = self.get_channel(channel_id)
         if not ch:
-            return
+            return {}, 1
 
         stats = ch.get("stats", {
             "total_predictions": 0,

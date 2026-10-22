@@ -46,8 +46,8 @@ WINGO_GAMES = {
     }
 }
 
-# Demo Account Automation settings
-DEMO_AUTO_BET = os.getenv("DEMO_AUTO_BET", "false").lower() == "true"
-DEMO_LOGIN_URL = os.getenv("DEMO_LOGIN_URL", "")
-DEMO_USERNAME = os.getenv("DEMO_USERNAME", "")
-DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "")
+# Demo Account Automation settings (Defaults to user's provided BDGWin demo account)
+DEMO_AUTO_BET = os.getenv("DEMO_AUTO_BET", "true").lower() == "true"
+DEMO_LOGIN_URL = os.getenv("DEMO_LOGIN_URL", "https://bdgwina.biz/#/login")
+DEMO_USERNAME = os.getenv("DEMO_USERNAME", "6556745550")
+DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "win1222")
