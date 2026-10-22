@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+cd "$(dirname "$0")"
+BOT_FILE="main.py"
+LOG_FILE="bot.log"
+PID_FILE="bot.pid"
+
+if [ -f "$PID_FILE" ]; then 
+    kill $(cat "$PID_FILE") 2>/dev/null || true
+    rm -f "$PID_FILE"
+fi
+
+pkill -f ".*${BOT_FILE}" 2>/dev/null || true
+
+if [ -d ".venv" ]; then
+    . .venv/bin/activate
+fi
+
+nohup python3 "$BOT_FILE" >> "$LOG_FILE" 2>&1 &
+echo $! > "$PID_FILE"
+echo "✅ Bot started successfully! PID: $(cat "$PID_FILE")"

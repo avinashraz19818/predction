@@ -1,0 +1,16 @@
+.env
+*.session
+*.session-journal
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.pid
+.venv/
+venv/
+extracted/
+repo.zip
+ai_pattern_model.pkl
+*.bak
+*.png

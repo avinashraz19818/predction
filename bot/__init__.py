@@ -1,0 +1,1 @@
+"""WinGo Telegram Bot Module"""
