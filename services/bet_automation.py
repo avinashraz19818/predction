@@ -29,8 +29,8 @@ class BetAutomationService:
     async def initialize(self) -> bool:
         return await self.worker.initialize()
 
-    async def place_bet(self, game_id: str, choice: str, issue_number: str = "") -> bool:
-        res = await self.worker.place_bet(game_id, choice, issue_number)
+    async def place_bet(self, game_id: str, choice: str, issue_number: str = "", level: int = 1) -> bool:
+        res = await self.worker.place_bet(game_id, choice, issue_number, level)
         return res.get("ok", False)
 
     async def capture_win_screenshot(

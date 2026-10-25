@@ -1,9 +1,36 @@
 import os
 import re
 import json
-from typing import List
+from typing import List, Optional
 
 # Load premium animated emoji IDs from emoji_config.json and convert to Bot API <tg-emoji emoji-id="...">
+DEFAULT_PREDICTION_TEMPLATE = """{crown} <b>𝗩𝗜𝗣 {game_name} 𝗦𝗜𝗚𝗡𝗔𝗟</b> {crown}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{target} <b>𝗣𝗲𝗿𝗶𝗼𝗱:</b> <code>{issue}</code>
+{chart} <b>𝗣𝗿𝗲𝗱𝗶𝗰𝘁𝗶𝗼𝗻:</b> <b>{prediction}</b>
+{fire} <b>𝗖𝗼𝗻𝗳𝗶𝗱𝗲𝗻𝗰𝗲:</b> <code>[{progress}] {confidence}%</code>
+🛡️ <b>𝗦𝗮𝗳𝗲 𝗟𝗲𝘃𝗲𝗹:</b> <b>𝗟𝗲𝘃𝗲𝗹 {level} (Safe Martingale)</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{lightning} <i>Pattern: {pattern}</i>
+{money} <i>{promo}</i>"""
+
+DEFAULT_WIN_TEMPLATE = """{party} <b>𝗪𝗜𝗡 𝗖𝗢𝗡𝗙𝗜𝗥𝗠𝗘𝗗! 𝗣𝗔𝗦𝗦𝗘𝗗</b> {fire}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{target} <b>𝗣𝗲𝗿𝗶𝗼𝗱:</b> <code>{issue}</code>
+{check} <b>𝗥𝗲𝘀𝘂𝗹𝘁:</b> <b>{result} (Number: {number})</b>
+{trophy} <b>𝗦𝘁𝗮𝘁𝘂𝘀:</b> <b>𝗪𝗜𝗡 𝗔𝗧 𝗟𝗘𝗩𝗘𝗟 {level}!</b>
+{fire} <b>𝗪𝗶𝗻 𝗦𝘁𝗿𝗲𝗮𝗸:</b> <b>{streak}x 𝗖𝗼𝗻𝘀𝗲𝗰𝘂𝘁𝗶𝘃𝗲 𝗪𝗶𝗻𝘀</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{rocket} <i>Next round signal starting in a few seconds! Keep profits safe!</i>"""
+
+DEFAULT_LOSS_TEMPLATE = """{warning} <b>𝗟𝗘𝗩𝗘𝗟 {curr_level} 𝗠𝗜𝗦𝗦𝗘𝗗!</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{target} <b>𝗣𝗲𝗿𝗶𝗼𝗱:</b> <code>{issue}</code> (Result: {number} - {result})
+{reload} <b>𝗡𝗲𝘅𝘁 𝗔𝗰𝘁𝗶𝗼𝗻:</b> <b>𝗠𝗼𝘃𝗲 𝘁𝗼 𝗟𝗲𝘃𝗲𝗹 {next_level}</b>
+{lightning} <i>Follow Martingale to recover all investment with profit!</i>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{target} <i>Next prediction incoming immediately...</i>"""
+
 PREMIUM_EMOJIS = {
     "fire": '<tg-emoji emoji-id="5420315771991497307">🔥</tg-emoji>',
     "crown": '<tg-emoji emoji-id="6266995104687330978">👑</tg-emoji>',
@@ -65,13 +92,15 @@ def render_prediction_card(
     confidence: int,
     level: int,
     pattern_name: str = "Trend Momentum",
-    promo_text: str = ""
+    promo_text: str = "",
+    custom_template: Optional[str] = None
 ) -> str:
     """
-    Renders the modern VIP Gold Prediction Signal Card with Telegram Premium Animated Emojis
+    Renders prediction signal card.
+    Lucky numbers removed per user request: only shows choice (BIG 5-9 or SMALL 0-4).
+    Supports custom template from admin panel.
     """
     progress = make_progress_bar(confidence, 10)
-    numbers_str = ", ".join(map(str, numbers))
     
     crown = em("crown", "👑")
     target = em("target", "🎯")
@@ -85,11 +114,35 @@ def render_prediction_card(
     choice_badge = f"🟥 𝗕𝗜𝗚𝗚𝗚 (5-9) {fire}" if choice == "BIG" else f"🟩 𝗦𝗠𝗔𝗟𝗟 (0-4) {sparkles}"
     promo_clean = promo_text.replace("🔥", fire) if promo_text else f"{fire} Maintain 3-5 Level Fund for 100% Daily Profit!"
 
+    if custom_template and custom_template.strip():
+        txt = custom_template
+        replacements = {
+            "{game_name}": game_name,
+            "{issue}": str(issue_number),
+            "{prediction}": choice_badge,
+            "{choice}": choice,
+            "{confidence}": str(confidence),
+            "{progress}": progress,
+            "{level}": str(level),
+            "{pattern}": pattern_name,
+            "{promo}": promo_clean,
+            "{crown}": crown,
+            "{target}": target,
+            "{chart}": chart,
+            "{fire}": fire,
+            "{sparkles}": sparkles,
+            "{money}": money,
+            "{lightning}": lightning
+        }
+        for k, v in replacements.items():
+            txt = txt.replace(k, v)
+        return txt
+
+    # Default clean template without redundant lucky numbers row
     msg = f"""{crown} <b>𝗩𝗜𝗣 {game_name.upper()} 𝗦𝗜𝗚𝗡𝗔𝗟</b> {crown}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 {target} <b>𝗣𝗲𝗿𝗶𝗼𝗱:</b> <code>{issue_number}</code>
 {chart} <b>𝗣𝗿𝗲𝗱𝗶𝗰𝘁𝗶𝗼𝗻:</b> <b>{choice_badge}</b>
-{star} <b>𝗟𝘂𝗰𝗸𝘆 𝗡𝘂𝗺𝗯𝗲𝗿𝘀:</b> <code>[ {numbers_str} ]</code>
 {fire} <b>𝗖𝗼𝗻𝗳𝗶𝗱𝗲𝗻𝗰𝗲:</b> <code>[{progress}] {confidence}%</code>
 🛡️ <b>𝗦𝗮𝗳𝗲 𝗟𝗲𝘃𝗲𝗹:</b> <b>𝗟𝗲𝘃𝗲𝗹 {level} (Safe Martingale)</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -104,10 +157,12 @@ def render_win_card(
     actual_number: int,
     level: int,
     streak: int,
-    hit_lucky_number: bool = False
+    hit_lucky_number: bool = False,
+    custom_template: Optional[str] = None
 ) -> str:
     """
-    Celebration WIN Card with Telegram Premium Animated Emojis
+    Celebration WIN Card with Telegram Premium Animated Emojis.
+    Supports admin custom template.
     """
     party = em("party", "🎉")
     fire = em("fire", "🔥")
@@ -117,15 +172,33 @@ def render_win_card(
     sparkles = em("sparkles", "✨")
     rocket = em("rocket", "🚀")
 
-    lucky_badge = f"\n{sparkles} <b>𝗕𝗢𝗡𝗨𝗦: Lucky Number {actual_number} Direct HIT! {target}</b>" if hit_lucky_number else ""
     fire_streak = fire * min(5, max(1, streak))
-    
+
+    if custom_template and custom_template.strip():
+        txt = custom_template
+        replacements = {
+            "{game_name}": game_name,
+            "{issue}": str(issue_number),
+            "{result}": actual_choice,
+            "{number}": str(actual_number),
+            "{level}": str(level),
+            "{streak}": str(streak),
+            "{fire}": fire,
+            "{trophy}": trophy,
+            "{check}": check,
+            "{party}": party,
+            "{rocket}": rocket
+        }
+        for k, v in replacements.items():
+            txt = txt.replace(k, v)
+        return txt
+
     msg = f"""{party} <b>𝗪𝗜𝗡 𝗖𝗢𝗡𝗙𝗜𝗥𝗠𝗘𝗗! 𝗣𝗔𝗦𝗦𝗘𝗗</b> {fire_streak}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 {target} <b>𝗣𝗲𝗿𝗶𝗼𝗱:</b> <code>{issue_number}</code>
 {check} <b>𝗥𝗲𝘀𝘂𝗹𝘁:</b> <b>{actual_choice} (Number: {actual_number})</b>
 {trophy} <b>𝗦𝘁𝗮𝘁𝘂𝘀:</b> <b>𝗪𝗜𝗡 𝗔𝗧 𝗟𝗘𝗩𝗘𝗟 {level}!</b>
-{fire} <b>𝗪𝗶𝗻 𝗦𝘁𝗿𝗲𝗮𝗸:</b> <b>{streak}x 𝗖𝗼𝗻𝘀𝗲𝗰𝘂𝘁𝗶𝘃𝗲 𝗪𝗶𝗻𝘀</b>{lucky_badge}
+{fire} <b>𝗪𝗶𝗻 𝗦𝘁𝗿𝗲𝗮𝗸:</b> <b>{streak}x 𝗖𝗼𝗻𝘀𝗲𝗰𝘂𝘁𝗶𝘃𝗲 𝗪𝗶𝗻𝘀</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 {rocket} <i>Next round signal starting in a few seconds! Keep profits safe!</i>"""
     return msg
@@ -136,21 +209,41 @@ def render_loss_card(
     actual_choice: str,
     actual_number: int,
     curr_level: int,
-    next_level: int
+    next_level: int,
+    custom_template: Optional[str] = None
 ) -> str:
     """
-    Level increment card for Martingale recovery with Premium Animated Emojis
+    Level increment card for Martingale recovery with Premium Animated Emojis.
+    Supports admin custom template.
     """
     warning = em("warning", "⚠️")
     target = em("target", "🎯")
     reload_em = em("reload", "🔄")
     lightning = em("lightning", "⚡")
 
+    if custom_template and custom_template.strip():
+        txt = custom_template
+        replacements = {
+            "{game_name}": game_name,
+            "{issue}": str(issue_number),
+            "{result}": actual_choice,
+            "{number}": str(actual_number),
+            "{curr_level}": str(curr_level),
+            "{next_level}": str(next_level),
+            "{warning}": warning,
+            "{target}": target,
+            "{reload}": reload_em,
+            "{lightning}": lightning
+        }
+        for k, v in replacements.items():
+            txt = txt.replace(k, v)
+        return txt
+
     msg = f"""{warning} <b>𝗟𝗘𝗩𝗘𝗟 {curr_level} 𝗠𝗜𝗦𝗦𝗘𝗗!</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 {target} <b>𝗣𝗲𝗿𝗶𝗼𝗱:</b> <code>{issue_number}</code> (Result: {actual_number} - {actual_choice})
 {reload_em} <b>𝗡𝗲𝘅𝘁 𝗔𝗰𝘁𝗶𝗼𝗻:</b> <b>𝗠𝗼𝘃𝗲 𝘁𝗼 𝗟𝗲𝘃𝗲𝗹 {next_level}</b>
-{lightning} <i>Follow 3x Martingale to recover all investment with profit!</i>
+{lightning} <i>Follow Martingale to recover all investment with profit!</i>
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 {target} <i>Next prediction incoming immediately...</i>"""
     return msg
@@ -161,9 +254,6 @@ def render_pre_session_alert_card(
     game_name: str = "WinGo 1 Minute",
     promo_text: str = ""
 ) -> str:
-    """
-    15-Minute Upcoming VIP Session Alert Card
-    """
     warning = em("warning", "🚨")
     clock = em("clock", "⏰")
     target = em("target", "🎯")
@@ -192,9 +282,6 @@ def render_session_start_card(
     max_rounds: int = 15,
     game_name: str = "WinGo 1 Minute"
 ) -> str:
-    """
-    VIP Session Live Kickoff Card
-    """
     crown = em("crown", "👑")
     rocket = em("rocket", "🚀")
     clock = em("clock", "⏰")
@@ -209,7 +296,7 @@ def render_session_start_card(
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 {fire} <b>𝗜𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀:</b>
 • Play every signal without skipping.
-• If Level 1 misses, strictly use 3X amount on Level 2!
+• If Level 1 misses, strictly use Martingale on Level 2!
 • Once WIN occurs, immediately reset back to Base Level 1.
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 {rocket} <i>First prediction signal starting in 10 seconds! Good luck!</i>"""
@@ -225,9 +312,6 @@ def render_session_summary_card(
     profit_inr: float,
     next_session_text: str = "Tomorrow at 11:00 AM"
 ) -> str:
-    """
-    End-of-Session Performance & Profit Summary Report Card
-    """
     trophy = em("trophy", "🏆")
     party = em("party", "🎉")
     chart = em("chart", "📊")

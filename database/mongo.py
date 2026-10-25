@@ -17,6 +17,11 @@ class DatabaseManager:
             "sessions": getattr(config, "DEFAULT_SESSIONS", []),
             "timezone": getattr(config, "TIMEZONE", "Asia/Kolkata"),
             "active_session": None,
+            "base_bet_amount": getattr(config, "DEMO_BET_AMOUNT", 10),
+            "martingale_multiplier": 2,
+            "tpl_prediction": None,
+            "tpl_win": None,
+            "tpl_loss": None,
         }
         self.connect()
 
@@ -61,12 +66,22 @@ class DatabaseManager:
                     "sessions": getattr(config, "DEFAULT_SESSIONS", []),
                     "timezone": getattr(config, "TIMEZONE", "Asia/Kolkata"),
                     "active_session": None,
+                    "base_bet_amount": getattr(config, "DEMO_BET_AMOUNT", 10),
+                    "martingale_multiplier": 2,
+                    "tpl_prediction": None,
+                    "tpl_win": None,
+                    "tpl_loss": None,
                     "updated_at": datetime.utcnow()
                 }
                 self.db.settings.insert_one(initial)
                 self._memory_settings = initial
             else:
                 doc.pop("_id", None)
+                # Ensure defaults for newly added keys
+                if "base_bet_amount" not in doc:
+                    doc["base_bet_amount"] = 10
+                if "martingale_multiplier" not in doc:
+                    doc["martingale_multiplier"] = 2
                 self._memory_settings = doc
         except Exception as e:
             logger.error(f"Error initializing system settings: {e}")
@@ -105,6 +120,33 @@ class DatabaseManager:
         mode = "24_7" if mode == "24_7" else "scheduled"
         self.update_system_settings({"mode": mode})
         return mode
+
+    def get_base_bet_amount(self) -> int:
+        cfg = self.get_system_settings()
+        return int(cfg.get("base_bet_amount", 10))
+
+    def set_base_bet_amount(self, amount: int) -> int:
+        amount = max(1, int(amount))
+        self.update_system_settings({"base_bet_amount": amount})
+        return amount
+
+    def get_martingale_multiplier(self) -> int:
+        cfg = self.get_system_settings()
+        return int(cfg.get("martingale_multiplier", 2))
+
+    def set_martingale_multiplier(self, mult: int) -> int:
+        mult = 3 if mult == 3 else 2
+        self.update_system_settings({"martingale_multiplier": mult})
+        return mult
+
+    def get_message_template(self, tpl_type: str) -> str:
+        cfg = self.get_system_settings()
+        key = f"tpl_{tpl_type}"
+        return cfg.get(key) or ""
+
+    def set_message_template(self, tpl_type: str, content: str):
+        key = f"tpl_{tpl_type}"
+        self.update_system_settings({key: content.strip() if content else None})
 
     def get_sessions(self) -> list:
         cfg = self.get_system_settings()

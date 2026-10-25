@@ -70,7 +70,7 @@ WIN_POPUP_JS = """() => {
 class PlaywrightWinGoWorker:
     """
     Playwright-based real human-like game player with instant 0-second popup capture (smex pattern).
-    Flow: Real Login -> Place Bet -> Count Down Watcher -> Instant 80ms Win Popup Capture -> Telegram Delivery.
+    Flow: Real Login -> Place Bet with Martingale Level -> Count Down Watcher -> Instant 80ms Win Popup Capture -> Telegram Delivery.
     """
 
     def __init__(self):
@@ -193,7 +193,6 @@ class PlaywrightWinGoWorker:
         if not self.page:
             return True
         try:
-            # Check expired toast
             expired_toast = self.page.locator(".van-toast:has-text('expired'), .van-toast:has-text('login')").first
             if await expired_toast.is_visible(timeout=700):
                 return True
@@ -206,12 +205,10 @@ class PlaywrightWinGoWorker:
             if await phone_inp.is_visible(timeout=700):
                 return True
 
-            # If board visible, user is logged in
             board = self.page.locator(PERIOD_SELECTOR).first
             if await board.is_visible(timeout=700):
                 return False
 
-            # Check guest login button
             guest_btn = self.page.locator(".p8-home__guest-btn--login, button:has-text('Log in')").first
             if await guest_btn.is_visible(timeout=700):
                 return True
@@ -328,7 +325,6 @@ class PlaywrightWinGoWorker:
             logger.info("👉 Clicked Login Button! Waiting for home page...")
             await asyncio.sleep(4.0)
 
-            # Wait for login loader
             try:
                 loader = self.page.locator(".ar-loading-view").first
                 await loader.wait_for(state="hidden", timeout=8000)
@@ -342,14 +338,6 @@ class PlaywrightWinGoWorker:
             return False
 
     async def open_room_step_by_step(self, game_id: str = "wingo_1m") -> bool:
-        """
-        Executes the exact real human user navigation flow:
-        Step 1: Check login & log in with credentials
-        Step 2: Home page & dismiss welcome announcement
-        Step 3: Click 'Lottery' button or open SaasLottery room
-        Step 4: Select 1Min game tab
-        Step 5: Confirm WinGo Period is visible on board
-        """
         if not self.page:
             return False
 
@@ -379,7 +367,6 @@ class PlaywrightWinGoWorker:
             await asyncio.sleep(3.0)
             await self.dismiss_announcements()
 
-            # If direct URL did not open board, click Lottery button from menu like a human
             board_loc = self.page.locator(PERIOD_SELECTOR).first
             if not await board_loc.is_visible(timeout=3000):
                 logger.info("👉 Clicking 'Lottery' icon from home screen...")
@@ -516,13 +503,81 @@ class PlaywrightWinGoWorker:
                 pass
 
     # ------------------------------------------------------------------ #
-    #  Real Bet Placement
+    #  Bet Amount & Multiplier Setter (smex logic)
     # ------------------------------------------------------------------ #
 
-    async def place_bet(self, game_id: str, choice: str, issue_number: str = "") -> dict:
+    async def set_bet_amount(self, target_total: int):
+        """Sets the exact bet chip and multiplier on the open WinGo betting sheet (smex logic)"""
+        if not self.page or target_total <= 0:
+            return
+
+        unit = 1
+        qty = target_total
+        if target_total >= 1000 and target_total % 1000 == 0:
+            unit = 1000
+            qty = target_total // 1000
+        elif target_total >= 100 and target_total % 100 == 0:
+            unit = 100
+            qty = target_total // 100
+        elif target_total >= 10 and target_total % 10 == 0:
+            unit = 10
+            qty = target_total // 10
+
+        logger.info(f"💰 Setting In-Game Bet: Unit ₹{unit} x Multiplier {qty} = Total ₹{target_total}")
+
+        # 1. Click Unit Chip (1, 10, 100, 1000)
+        try:
+            await self.page.evaluate("""(u) => {
+                const chips = Array.from(document.querySelectorAll('.amount-buttons > div, .amount-section .amount-buttons > div, .Betting__Popup-body-line-item'));
+                const target = chips.find(c => c.textContent.trim() === String(u));
+                if (target) target.click();
+            }""", unit)
+        except Exception:
+            pass
+
+        # 2. If multiplier button matches (X1, X5, X10, X20, X50, X100)
+        mult_clicked = False
+        if qty in [1, 5, 10, 20, 50, 100]:
+            try:
+                mult_clicked = await self.page.evaluate("""(q) => {
+                    const btns = Array.from(document.querySelectorAll('.multiplier-buttons > div, [class*="multiplier"] > div'));
+                    const target = btns.find(b => b.textContent.trim().toUpperCase() === 'X' + q);
+                    if (target) {
+                        target.click();
+                        return true;
+                    }
+                    return false;
+                }""", qty)
+            except Exception:
+                mult_clicked = False
+
+        # 3. If custom quantity, set reactive input value
+        if not mult_clicked and qty != 1:
+            try:
+                await self.page.evaluate("""(val) => {
+                    const el = document.querySelector('.multiplier-section input, .m input, input[type="number"], .Betting__Popup-input input');
+                    if (el) {
+                        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+                        if (nativeSetter) {
+                            nativeSetter.call(el, String(val));
+                        } else {
+                            el.value = String(val);
+                        }
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }""", str(qty))
+            except Exception:
+                pass
+
+    # ------------------------------------------------------------------ #
+    #  Real Bet Placement with Level-wise Martingale Sizing
+    # ------------------------------------------------------------------ #
+
+    async def place_bet(self, game_id: str, choice: str, issue_number: str = "", level: int = 1) -> dict:
         """
-        Places real bet on Big or Small (or number ball) on the live game board
-        AND starts the real-time draw watcher to catch the 3-second popup!
+        Places real bet on Big or Small (or number ball) on the live game board,
+        applies Martingale multiplier (e.g. 2X/3X per level) and starts the draw watcher!
         """
         async with self._lock:
             if not self.is_ready or not self.page:
@@ -556,17 +611,27 @@ class PlaywrightWinGoWorker:
 
                 await asyncio.sleep(0.5)
 
+                # Calculate Martingale Bet Amount
+                from database import db_manager
+                base_bet = db_manager.get_base_bet_amount()
+                martingale_mult = db_manager.get_martingale_multiplier()
+                target_amount = base_bet * (martingale_mult ** max(0, level - 1))
+
+                # Apply Amount & Multiplier on sheet
+                await self.set_bet_amount(target_amount)
+                await asyncio.sleep(0.3)
+
                 # Confirm Bet Modal
                 confirm_btn = self.page.locator(BET_CONFIRM_SELECTOR).first
                 if await confirm_btn.is_visible(timeout=3000):
                     await confirm_btn.click()
-                    logger.info(f"✅ Real in-game bet placed on {choice.upper()} for period {issue_number}!")
+                    logger.info(f"✅ Real in-game bet placed on {choice.upper()} for period {issue_number} (Level {level} -> ₹{target_amount})!")
                     await asyncio.sleep(0.4)
 
                     # START THE REAL-TIME DRAW WATCHER IMMEDIATELY!
                     asyncio.create_task(self.watch_and_capture_win_popup(str(issue_number)))
 
-                    return {"ok": True, "choice": choice.upper(), "issue": issue_number}
+                    return {"ok": True, "choice": choice.upper(), "issue": issue_number, "amount": target_amount}
                 else:
                     logger.warning("Bet confirm button not found.")
                     return {"ok": False, "reason": "confirm_button_missing"}

@@ -14,7 +14,14 @@ from bot.keyboards import (
     get_channel_buttons_keyboard,
     get_button_style_select_keyboard,
     get_sessions_manage_keyboard,
-    get_browser_status_keyboard
+    get_browser_status_keyboard,
+    get_bet_amount_keyboard,
+    get_templates_menu_keyboard
+)
+from bot.templates import (
+    DEFAULT_PREDICTION_TEMPLATE,
+    DEFAULT_WIN_TEMPLATE,
+    DEFAULT_LOSS_TEMPLATE
 )
 
 logger = logging.getLogger(__name__)
@@ -33,16 +40,28 @@ def _get_admin_panel_text(user_first_name: str) -> str:
     mode_str = "⚡ 24/7 Continuous (Non-Stop)" if mode == "24_7" else "🕒 Scheduled VIP Sessions (IST)"
     browser_ready = bet_automation.is_logged_in
     browser_status = "🟢 Logged In & Ready (Playwright)" if browser_ready else "⚪ Idle / Connecting..."
+    base_bet = db_manager.get_base_bet_amount()
+    martingale_mult = db_manager.get_martingale_multiplier()
 
     return f"""👑 <b>𝗪𝗜𝗡𝗚𝗢 𝗔𝗜 𝗣𝗥𝗘𝗗𝗜𝗖𝗧𝗜𝗢𝗡 𝗔𝗗𝗠𝗜𝗡 𝗣𝗔𝗡𝗘𝗟</b> 👑
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 👋 Welcome, <b>{user_first_name}</b>!
 ⚡ <b>Operating Mode:</b> <code>{mode_str}</code>
+💰 <b>Base Bet:</b> <code>₹{base_bet}</code> (Martingale: <b>{martingale_mult}X</b>)
 🎮 <b>Automation Status:</b> <code>{browser_status}</code>
 🤖 <b>Engine:</b> WinGo 30s, 1M, 3M, 5M (Multi-Game)
-🛡️ <b>Strategy:</b> 3-5 Level Martingale
+🛡️ <b>Strategy:</b> Dynamic Level Multiplier
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 Select an option from the menu below:"""
+
+def _get_main_keyboard():
+    cfg = db_manager.get_system_settings()
+    return get_admin_main_keyboard(
+        operating_mode=cfg.get("mode", "24_7"),
+        browser_ready=bet_automation.is_logged_in,
+        base_bet=db_manager.get_base_bet_amount(),
+        martingale_mult=db_manager.get_martingale_multiplier()
+    )
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -50,19 +69,16 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⛔ You are not authorized to access this bot.")
         return
 
-    cfg = db_manager.get_system_settings()
-    mode = cfg.get("mode", "24_7")
     text = _get_admin_panel_text(user.first_name)
-    reply_markup = get_admin_main_keyboard(operating_mode=mode, browser_ready=bet_automation.is_logged_in)
+    reply_markup = _get_main_keyboard()
     await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
 
 async def _render_channel_view(query, ch_id: str):
     ch = db_manager.get_channel(ch_id)
     if not ch:
-        cfg = db_manager.get_system_settings()
         await query.edit_message_text(
             "❌ Channel not found.",
-            reply_markup=get_admin_main_keyboard(cfg.get("mode", "24_7"), bet_automation.is_logged_in)
+            reply_markup=_get_main_keyboard()
         )
         return
 
@@ -107,12 +123,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 1. Main Menu Refresh / Home
     if data in ["admin_main", "admin_refresh"]:
         admin_states.pop(user.id, None)
-        mode = cfg.get("mode", "24_7")
         text = _get_admin_panel_text(user.first_name)
         await query.edit_message_text(
             text,
             parse_mode=ParseMode.HTML,
-            reply_markup=get_admin_main_keyboard(operating_mode=mode, browser_ready=bet_automation.is_logged_in)
+            reply_markup=_get_main_keyboard()
         )
 
     # 2. Toggle Operating Mode (24/7 vs Scheduled)
@@ -126,7 +141,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             text,
             parse_mode=ParseMode.HTML,
-            reply_markup=get_admin_main_keyboard(operating_mode=new_mode, browser_ready=bet_automation.is_logged_in)
+            reply_markup=_get_main_keyboard()
         )
 
     elif data.startswith("set_mode:"):
@@ -138,8 +153,102 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             text,
             parse_mode=ParseMode.HTML,
-            reply_markup=get_admin_main_keyboard(operating_mode=target_mode, browser_ready=bet_automation.is_logged_in)
+            reply_markup=_get_main_keyboard()
         )
+
+    # Bet Amount Configuration
+    elif data == "admin_set_bet":
+        current_amt = db_manager.get_base_bet_amount()
+        mult = db_manager.get_martingale_multiplier()
+        text = f"""💰 <b>𝗖𝗢𝗡𝗙𝗜𝗚𝗨𝗥𝗘 𝗕𝗔𝗦𝗘 𝗕𝗘𝗧 𝗔𝗠𝗢𝗨𝗡𝗧</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Current Base Bet: <b>₹{current_amt}</b>
+Martingale Multiplier: <b>{mult}X</b>
+
+<b>Level Progression Preview:</b>
+• Level 1: ₹{current_amt}
+• Level 2: ₹{current_amt * mult}
+• Level 3: ₹{current_amt * (mult**2)}
+• Level 4: ₹{current_amt * (mult**3)}
+• Level 5: ₹{current_amt * (mult**4)}
+
+Select a quick amount or enter a custom amount:"""
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=get_bet_amount_keyboard(current_amt))
+
+    elif data.startswith("set_base_amt:"):
+        amt = int(data.split(":")[1])
+        db_manager.set_base_bet_amount(amt)
+        await query.answer(f"Base bet set to ₹{amt}!", show_alert=True)
+        text = _get_admin_panel_text(user.first_name)
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=_get_main_keyboard())
+
+    elif data == "input_custom_bet":
+        admin_states[user.id] = {"state": "waiting_custom_bet"}
+        text = """✏️ <b>Enter Custom Base Bet Amount</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Please send an integer amount in INR (e.g. <code>10</code>, <code>25</code>, <code>50</code>, <code>100</code>):"""
+        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data="admin_set_bet")]]
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    # Martingale Multiplier Toggle (2X <-> 3X)
+    elif data == "admin_toggle_martingale":
+        curr_mult = db_manager.get_martingale_multiplier()
+        new_mult = 3 if curr_mult == 2 else 2
+        db_manager.set_martingale_multiplier(new_mult)
+        await query.answer(f"Martingale multiplier set to {new_mult}X!", show_alert=True)
+        text = _get_admin_panel_text(user.first_name)
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=_get_main_keyboard())
+
+    # Message Templates Menu
+    elif data == "admin_templates":
+        text = """📝 <b>𝗖𝗨𝗦𝗧𝗢𝗠𝗜𝗭𝗘 𝗠𝗘𝗦𝗦𝗔𝗚𝗘 𝗧𝗘𝗠𝗣𝗟𝗔𝗧𝗘𝗦</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+You can fully customize how Prediction, Win, and Loss messages look in your channels!
+
+<b>Available Placeholders:</b>
+• <code>{game_name}</code> - WinGo duration name
+• <code>{issue}</code> - Round issue / period number
+• <code>{prediction}</code> - Choice badge (BIG 5-9 or SMALL 0-4)
+• <code>{level}</code> - Current Martingale Level
+• <code>{confidence}</code> - AI Confidence %
+• <code>{pattern}</code> - Detected Trend/Pattern
+• <code>{streak}</code> - Consecutive win streak
+• <code>{result}</code> - Actual winning choice (BIG / SMALL)
+• <code>{number}</code> - Actual winning number (0-9)
+• <code>{promo}</code> - Channel promo/invite text
+
+Choose which message template to edit:"""
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=get_templates_menu_keyboard())
+
+    elif data.startswith("edit_tpl:"):
+        tpl_type = data.split(":")[1]
+        current_tpl = db_manager.get_message_template(tpl_type)
+        if not current_tpl:
+            if tpl_type == "prediction":
+                current_tpl = DEFAULT_PREDICTION_TEMPLATE
+            elif tpl_type == "win":
+                current_tpl = DEFAULT_WIN_TEMPLATE
+            else:
+                current_tpl = DEFAULT_LOSS_TEMPLATE
+
+        admin_states[user.id] = {"state": f"waiting_tpl_{tpl_type}"}
+        prompt = f"""✏️ <b>Edit {tpl_type.upper()} Template</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Current Template:</b>
+<pre>{current_tpl}</pre>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Send your new template message text below. (HTML tags & placeholders supported)."""
+        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data="admin_templates")]]
+        await query.edit_message_text(prompt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data == "reset_tpl:all":
+        db_manager.set_message_template("prediction", None)
+        db_manager.set_message_template("win", None)
+        db_manager.set_message_template("loss", None)
+        await query.answer("All message templates reset to default!", show_alert=True)
+        text = _get_admin_panel_text(user.first_name)
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=_get_main_keyboard())
 
     # 3. View Scheduled Sessions
     elif data == "admin_sessions":
@@ -217,11 +326,10 @@ Click below to test live bet placement and capture a screenshot:"""
         except Exception as e:
             await query.answer(f"Reconnect failed: {e}", show_alert=True)
         text = _get_admin_panel_text(user.first_name)
-        mode = cfg.get("mode", "24_7")
         await query.edit_message_text(
             text,
             parse_mode=ParseMode.HTML,
-            reply_markup=get_admin_main_keyboard(operating_mode=mode, browser_ready=bet_automation.is_logged_in)
+            reply_markup=_get_main_keyboard()
         )
 
     # 7. Channel List
@@ -555,5 +663,38 @@ Choose the Telegram Native Colored Button Style below:"""
         await update.message.reply_text(
             f"📣 <b>Broadcast Complete!</b>\nSent successfully to <b>{sent_count}/{len(channels)}</b> channels.",
             parse_mode=ParseMode.HTML,
-            reply_markup=get_admin_main_keyboard(cfg.get("mode", "24_7"), bet_automation.is_logged_in)
+            reply_markup=_get_main_keyboard()
+        )
+
+    # Case 5: Custom Base Bet Amount
+    elif current_state == "waiting_custom_bet":
+        admin_states.pop(user.id, None)
+        cleaned = text.replace("₹", "").replace(",", "").strip()
+        try:
+            amt = int(cleaned)
+            if amt <= 0:
+                raise ValueError
+            db_manager.set_base_bet_amount(amt)
+            mult = db_manager.get_martingale_multiplier()
+            await update.message.reply_text(
+                f"✅ <b>Base Bet Amount updated to ₹{amt}!</b>\nMartingale Scaling: ₹{amt} → ₹{amt*mult} → ₹{amt*(mult**2)}...",
+                parse_mode=ParseMode.HTML,
+                reply_markup=_get_main_keyboard()
+            )
+        except ValueError:
+            await update.message.reply_text(
+                "❌ Invalid amount. Please enter a positive integer like <code>10</code>, <code>50</code>, <code>100</code>:",
+                parse_mode=ParseMode.HTML,
+                reply_markup=_get_main_keyboard()
+            )
+
+    # Case 6: Custom Message Templates (prediction / win / loss)
+    elif current_state.startswith("waiting_tpl_"):
+        tpl_type = current_state.replace("waiting_tpl_", "")
+        admin_states.pop(user.id, None)
+        db_manager.set_message_template(tpl_type, text)
+        await update.message.reply_text(
+            f"✅ <b>{tpl_type.upper()} message template updated successfully!</b>\nAll subsequent signals will be rendered with your custom style.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=_get_main_keyboard()
         )

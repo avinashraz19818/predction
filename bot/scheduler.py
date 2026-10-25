@@ -425,9 +425,11 @@ class WinGoScheduler:
 
                         logger.info(f"[{game_name}] New Signal for {next_issue}: {pred_data['choice']} Numbers: {pred_data['numbers']} ({pred_data['confidence']}%)")
 
+                        current_martingale_level = max([ch.get("current_level", 1) for ch in active_channels], default=1)
+
                         # Place real bet in Playwright headless browser
                         if bet_automation.enabled and bet_automation.is_logged_in:
-                            asyncio.create_task(bet_automation.place_bet(game_id, pred_data["choice"], next_issue))
+                            asyncio.create_task(bet_automation.place_bet(game_id, pred_data["choice"], next_issue, level=current_martingale_level))
 
                         # Send individual prediction message to channels
                         await self._broadcast_prediction(game_id, pred_data, active_channels)
@@ -449,6 +451,7 @@ class WinGoScheduler:
         """Sends a brand new individual prediction message to all subscribed channels"""
         game_cfg = config.WINGO_GAMES[game_id]
         game_name = game_cfg["name"]
+        custom_tpl = db_manager.get_message_template("prediction")
 
         for ch in channels:
             channel_id = ch["channel_id"]
@@ -463,7 +466,8 @@ class WinGoScheduler:
                 confidence=pred_data["confidence"],
                 level=curr_level,
                 pattern_name=pred_data["pattern_name"],
-                promo_text=promo
+                promo_text=promo,
+                custom_template=custom_tpl
             )
 
             try:
@@ -489,6 +493,8 @@ class WinGoScheduler:
         channels = db_manager.get_channels_by_game(game_id, only_active=True)
         game_cfg = config.WINGO_GAMES[game_id]
         game_name = game_cfg["name"]
+        custom_win_tpl = db_manager.get_message_template("win")
+        custom_loss_tpl = db_manager.get_message_template("loss")
 
         for ch in channels:
             channel_id = ch["channel_id"]
@@ -511,7 +517,8 @@ class WinGoScheduler:
                         actual_number=actual_number,
                         level=curr_level,
                         streak=streak,
-                        hit_lucky_number=hit_lucky_number
+                        hit_lucky_number=hit_lucky_number,
+                        custom_template=custom_win_tpl
                     )
 
                     # Real Playwright screenshot of the actual Congratulations popup
@@ -536,7 +543,8 @@ class WinGoScheduler:
                         actual_choice=actual_choice,
                         actual_number=actual_number,
                         curr_level=curr_level,
-                        next_level=next_level
+                        next_level=next_level,
+                        custom_template=custom_loss_tpl
                     )
                     await self._safe_send_message(ch, loss_text)
 

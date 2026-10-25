@@ -43,9 +43,14 @@ def get_channel_post_keyboard(channel: dict = None, include_custom_emoji: bool =
 
     return InlineKeyboardMarkup(keyboard)
 
-def get_admin_main_keyboard(operating_mode: str = "24_7", browser_ready: bool = False) -> InlineKeyboardMarkup:
-    """Admin Dashboard Main Menu with Mode & Automation Status"""
-    mode_text = "⚡ Mode: 24/7 Continuous" if operating_mode == "24_7" else "🕒 Mode: Scheduled VIP Sessions"
+def get_admin_main_keyboard(
+    operating_mode: str = "24_7",
+    browser_ready: bool = False,
+    base_bet: int = 10,
+    martingale_mult: int = 2
+) -> InlineKeyboardMarkup:
+    """Admin Dashboard Main Menu with Mode, Bet Amount, Multiplier & Templates"""
+    mode_text = "⚡ Mode: 24/7" if operating_mode == "24_7" else "🕒 Mode: Sessions"
     browser_badge = "🟢 Browser Live" if browser_ready else "⚪ Browser Idle"
 
     keyboard = [
@@ -54,16 +59,66 @@ def get_admin_main_keyboard(operating_mode: str = "24_7", browser_ready: bool = 
             InlineKeyboardButton("🕒 Sessions", callback_data="admin_sessions")
         ],
         [
+            InlineKeyboardButton(f"💰 Base Bet: ₹{base_bet}", callback_data="admin_set_bet"),
+            InlineKeyboardButton(f"🛡️ Martingale: {martingale_mult}X", callback_data="admin_toggle_martingale")
+        ],
+        [
+            InlineKeyboardButton("📝 Edit Message Templates", callback_data="admin_templates"),
+            InlineKeyboardButton(f"🎮 {browser_badge}", callback_data="admin_browser_status")
+        ],
+        [
             InlineKeyboardButton("📢 Manage Channels", callback_data="admin_channels"),
             InlineKeyboardButton("➕ Add Channel", callback_data="admin_add_channel")
         ],
         [
-            InlineKeyboardButton(f"🎮 {browser_badge}", callback_data="admin_browser_status"),
-            InlineKeyboardButton("📊 System Stats", callback_data="admin_stats")
+            InlineKeyboardButton("📊 System Stats", callback_data="admin_stats"),
+            InlineKeyboardButton("📣 Broadcast", callback_data="admin_broadcast")
         ],
         [
-            InlineKeyboardButton("📣 Broadcast to All", callback_data="admin_broadcast"),
             InlineKeyboardButton("🔄 Refresh Panel", callback_data="admin_refresh")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_bet_amount_keyboard(current_amount: int) -> InlineKeyboardMarkup:
+    """Quick select buttons for base bet amount"""
+    keyboard = [
+        [
+            InlineKeyboardButton("₹1", callback_data="set_base_amt:1"),
+            InlineKeyboardButton("₹5", callback_data="set_base_amt:5"),
+            InlineKeyboardButton("₹10", callback_data="set_base_amt:10")
+        ],
+        [
+            InlineKeyboardButton("₹20", callback_data="set_base_amt:20"),
+            InlineKeyboardButton("₹50", callback_data="set_base_amt:50"),
+            InlineKeyboardButton("₹100", callback_data="set_base_amt:100")
+        ],
+        [
+            InlineKeyboardButton("✏️ Enter Custom Amount", callback_data="input_custom_bet")
+        ],
+        [
+            InlineKeyboardButton("⬅️ Back to Admin", callback_data="admin_main")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_templates_menu_keyboard() -> InlineKeyboardMarkup:
+    """Menu to customize message templates"""
+    keyboard = [
+        [
+            InlineKeyboardButton("🎯 Edit Prediction Card", callback_data="edit_tpl:prediction")
+        ],
+        [
+            InlineKeyboardButton("🏆 Edit Win Card", callback_data="edit_tpl:win")
+        ],
+        [
+            InlineKeyboardButton("⚠️ Edit Loss Card", callback_data="edit_tpl:loss")
+        ],
+        [
+            InlineKeyboardButton("🔄 Reset All to Defaults", callback_data="reset_tpl:all")
+        ],
+        [
+            InlineKeyboardButton("⬅️ Back to Admin", callback_data="admin_main")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
