@@ -36,7 +36,6 @@ def get_channel_post_keyboard(channel: dict = None, include_custom_emoji: bool =
                 button_kwargs["icon_custom_emoji_id"] = str(emoji_id)
             keyboard.append([InlineKeyboardButton(**button_kwargs)])
         except TypeError:
-            # Fallback if older PTB version is installed
             keyboard.append([InlineKeyboardButton(text=text, url=url)])
 
     if not keyboard:
@@ -44,19 +43,63 @@ def get_channel_post_keyboard(channel: dict = None, include_custom_emoji: bool =
 
     return InlineKeyboardMarkup(keyboard)
 
-def get_admin_main_keyboard() -> InlineKeyboardMarkup:
-    """Admin Dashboard Main Menu"""
+def get_admin_main_keyboard(operating_mode: str = "24_7", browser_ready: bool = False) -> InlineKeyboardMarkup:
+    """Admin Dashboard Main Menu with Mode & Automation Status"""
+    mode_text = "⚡ Mode: 24/7 Continuous" if operating_mode == "24_7" else "🕒 Mode: Scheduled VIP Sessions"
+    browser_badge = "🟢 Browser Live" if browser_ready else "⚪ Browser Idle"
+
     keyboard = [
         [
+            InlineKeyboardButton(mode_text, callback_data="admin_toggle_mode"),
+            InlineKeyboardButton("🕒 Sessions", callback_data="admin_sessions")
+        ],
+        [
             InlineKeyboardButton("📢 Manage Channels", callback_data="admin_channels"),
-            InlineKeyboardButton("➕ Add New Channel", callback_data="admin_add_channel")
+            InlineKeyboardButton("➕ Add Channel", callback_data="admin_add_channel")
         ],
         [
-            InlineKeyboardButton("📊 System Statistics", callback_data="admin_stats"),
-            InlineKeyboardButton("📣 Broadcast Message", callback_data="admin_broadcast")
+            InlineKeyboardButton(f"🎮 {browser_badge}", callback_data="admin_browser_status"),
+            InlineKeyboardButton("📊 System Stats", callback_data="admin_stats")
         ],
         [
+            InlineKeyboardButton("📣 Broadcast to All", callback_data="admin_broadcast"),
             InlineKeyboardButton("🔄 Refresh Panel", callback_data="admin_refresh")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_sessions_manage_keyboard(sessions: list) -> InlineKeyboardMarkup:
+    """Menu to view and toggle scheduled VIP sessions"""
+    keyboard = []
+    for s in sessions:
+        s_id = s.get("id")
+        s_name = s.get("name", f"Session {s_id}")
+        start_t = s.get("start")
+        end_t = s.get("end")
+        keyboard.append([
+            InlineKeyboardButton(f"🕒 {s_name} [{start_t} - {end_t}]", callback_data=f"view_sess:{s_id}")
+        ])
+
+    keyboard.append([
+        InlineKeyboardButton("⚙️ Switch to 24/7 Mode", callback_data="set_mode:24_7"),
+        InlineKeyboardButton("⚙️ Switch to Session Mode", callback_data="set_mode:scheduled")
+    ])
+    keyboard.append([
+        InlineKeyboardButton("⬅️ Back to Main Admin", callback_data="admin_main")
+    ])
+    return InlineKeyboardMarkup(keyboard)
+
+def get_browser_status_keyboard() -> InlineKeyboardMarkup:
+    """Menu to inspect browser state and run manual test bet/screenshot"""
+    keyboard = [
+        [
+            InlineKeyboardButton("🎯 Test Bet & Capture Screenshot", callback_data="browser_test_action")
+        ],
+        [
+            InlineKeyboardButton("🔄 Reconnect Browser", callback_data="browser_reconnect")
+        ],
+        [
+            InlineKeyboardButton("⬅️ Back to Admin", callback_data="admin_main")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)

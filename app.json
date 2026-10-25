@@ -1,0 +1,80 @@
+{
+  "name": "WinGo VIP AI Prediction & Real Bet Auto-Capture Bot",
+  "description": "Enterprise-grade Color Prediction AI Bot with real-time Playwright bet placement, authentic live winning popup screen capture, 24/7 or Scheduled Sessions (IST) with pre-alerts and summary cards, and multi-channel support.",
+  "keywords": ["telegram-bot", "wingo", "prediction", "playwright", "color-prediction", "bdgwin", "martingale"],
+  "repository": "https://github.com/avinashraz19818/predction",
+  "success_url": "/admin",
+  "env": {
+    "BOT_TOKEN": {
+      "description": "Telegram Bot Token from @BotFather",
+      "required": true
+    },
+    "ADMIN_IDS": {
+      "description": "Comma-separated Telegram user IDs of bot admins (e.g. 8089603563,8015937475)",
+      "required": true
+    },
+    "MONGO_URI": {
+      "description": "MongoDB Atlas connection URI",
+      "value": "mongodb+srv://avinash:avinash12@cluster0.wnwd1fv.mongodb.net/?appName=Cluster0",
+      "required": true
+    },
+    "MONGO_DB_NAME": {
+      "description": "Database name in MongoDB",
+      "value": "maxie1min",
+      "required": false
+    },
+    "OPERATING_MODE": {
+      "description": "Operating Mode: '24_7' for continuous non-stop, or 'scheduled' for Daily VIP Sessions (IST)",
+      "value": "24_7",
+      "required": false
+    },
+    "TIMEZONE": {
+      "description": "Timezone for Scheduled Sessions",
+      "value": "Asia/Kolkata",
+      "required": false
+    },
+    "DEMO_AUTO_BET": {
+      "description": "Enable Playwright real bet placement and live winning popup capture",
+      "value": "true",
+      "required": false
+    },
+    "DEMO_LOGIN_URL": {
+      "description": "Login URL of the WinGo platform",
+      "value": "https://bdgwina.biz/#/login",
+      "required": false
+    },
+    "DEMO_USERNAME": {
+      "description": "Game account mobile number",
+      "value": "6556745550",
+      "required": false
+    },
+    "DEMO_PASSWORD": {
+      "description": "Game account password",
+      "value": "win1222",
+      "required": false
+    },
+    "DEFAULT_REGISTER_LINK": {
+      "description": "Default invitation registration link for members",
+      "value": "https://bdgwin7.com/#/register?invitationCode=833131014850",
+      "required": false
+    },
+    "DEFAULT_PROMO_TEXT": {
+      "description": "Default promotion text on signals",
+      "value": "🔥 Maintain 3-5 Level Fund for 100% Daily Profit!",
+      "required": false
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    },
+    {
+      "url": "https://github.com/mxschmitt/heroku-playwright-buildpack.git"
+    }
+  ],
+  "formation": {
+    "worker": {
+      "quantity": 1
+    }
+  }
+}

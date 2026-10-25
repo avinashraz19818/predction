@@ -11,7 +11,13 @@ class DatabaseManager:
         self.db = None
         self.connected = False
         self._memory_channels = {}
-        self._memory_settings = {}
+        self._memory_settings = {
+            "mode": getattr(config, "DEFAULT_OPERATING_MODE", "24_7"),
+            "pre_alert_minutes": getattr(config, "PRE_ALERT_MINUTES", 15),
+            "sessions": getattr(config, "DEFAULT_SESSIONS", []),
+            "timezone": getattr(config, "TIMEZONE", "Asia/Kolkata"),
+            "active_session": None,
+        }
         self.connect()
 
     def connect(self):
@@ -27,6 +33,7 @@ class DatabaseManager:
             self.connected = True
             logger.info("✅ MongoDB connected successfully!")
             self._ensure_indexes()
+            self._ensure_settings()
         except Exception as e:
             self.connected = False
             logger.warning(f"⚠️ MongoDB connection failed: {e}. Using in-memory fallback storage.")
@@ -37,8 +44,75 @@ class DatabaseManager:
         try:
             self.db.channels.create_index("channel_id", unique=True)
             self.db.predictions.create_index([("game_id", 1), ("issue_number", 1)])
+            self.db.settings.create_index("key", unique=True)
         except Exception as e:
             logger.error(f"Error creating indexes: {e}")
+
+    def _ensure_settings(self):
+        if not self.connected:
+            return
+        try:
+            doc = self.db.settings.find_one({"key": "system_config"})
+            if not doc:
+                initial = {
+                    "key": "system_config",
+                    "mode": getattr(config, "DEFAULT_OPERATING_MODE", "24_7"),
+                    "pre_alert_minutes": getattr(config, "PRE_ALERT_MINUTES", 15),
+                    "sessions": getattr(config, "DEFAULT_SESSIONS", []),
+                    "timezone": getattr(config, "TIMEZONE", "Asia/Kolkata"),
+                    "active_session": None,
+                    "updated_at": datetime.utcnow()
+                }
+                self.db.settings.insert_one(initial)
+                self._memory_settings = initial
+            else:
+                doc.pop("_id", None)
+                self._memory_settings = doc
+        except Exception as e:
+            logger.error(f"Error initializing system settings: {e}")
+
+    # ================= SYSTEM SETTINGS & SESSION SCHEDULE =================
+
+    def get_system_settings(self) -> dict:
+        if self.connected:
+            try:
+                doc = self.db.settings.find_one({"key": "system_config"})
+                if doc:
+                    doc.pop("_id", None)
+                    self._memory_settings = doc
+                    return doc
+            except Exception as e:
+                logger.error(f"Error getting settings from Mongo: {e}")
+        return self._memory_settings
+
+    def update_system_settings(self, updates: dict) -> dict:
+        self._memory_settings.update(updates)
+        updates["updated_at"] = datetime.utcnow()
+        if self.connected:
+            try:
+                self.db.settings.update_one(
+                    {"key": "system_config"},
+                    {"$set": updates},
+                    upsert=True
+                )
+                logger.info(f"✅ System settings updated: {list(updates.keys())}")
+            except Exception as e:
+                logger.error(f"Error updating settings in Mongo: {e}")
+        return self._memory_settings
+
+    def set_operating_mode(self, mode: str) -> str:
+        """Sets operating mode: '24_7' or 'scheduled'"""
+        mode = "24_7" if mode == "24_7" else "scheduled"
+        self.update_system_settings({"mode": mode})
+        return mode
+
+    def get_sessions(self) -> list:
+        cfg = self.get_system_settings()
+        return cfg.get("sessions", getattr(config, "DEFAULT_SESSIONS", []))
+
+    def update_sessions(self, sessions: list) -> list:
+        self.update_system_settings({"sessions": sessions})
+        return sessions
 
     # ================= CHANNEL MANAGEMENT =================
 
@@ -54,7 +128,7 @@ class DatabaseManager:
             "is_active": True,
             "register_link": register_link or (existing.get("register_link") if existing else config.DEFAULT_REGISTER_LINK),
             "promo_text": promo_text or (existing.get("promo_text") if existing else config.DEFAULT_PROMO_TEXT),
-            "buttons": existing_buttons,  # Empty by default! Only buttons added by admin will appear
+            "buttons": existing_buttons,
             "current_level": existing.get("current_level", 1) if existing else 1,
             "max_level": 5,
             "stats": existing.get("stats", {
@@ -112,7 +186,6 @@ class DatabaseManager:
                     if "buttons" not in c:
                         c["buttons"] = []
                     channels.append(c)
-                # Keep memory synced
                 for c in channels:
                     self._memory_channels[c["channel_id"]] = c
                 return channels
@@ -147,7 +220,6 @@ class DatabaseManager:
     # ================= CHANNEL BUTTON MANAGEMENT =================
 
     def add_channel_button(self, channel_id: str, text: str, url: str, style: str = None, icon_custom_emoji_id: str = None):
-        """Adds a custom inline button with optional Telegram native color style (success/danger/primary)"""
         ch = self.get_channel(channel_id)
         if not ch:
             return []
@@ -163,7 +235,6 @@ class DatabaseManager:
         return buttons
 
     def remove_channel_button(self, channel_id: str, index: int):
-        """Removes a button by index from the channel's buttons list"""
         ch = self.get_channel(channel_id)
         if not ch:
             return []
@@ -174,7 +245,6 @@ class DatabaseManager:
         return buttons
 
     def clear_channel_buttons(self, channel_id: str):
-        """Removes all buttons from a channel so messages are sent with zero buttons"""
         self.update_channel(channel_id, {"buttons": []})
         return []
 

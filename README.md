@@ -1,108 +1,108 @@
-# 👑 Modern WinGo VIP Prediction Bot (30s, 1M, 3M, 5M)
+# 👑 WinGo VIP AI Prediction System & Real Bet Auto-Capture
 
-Ek high-speed, modern aur modular Telegram Bot jo **WinGo 30s, 1 Minute, 3 Minute aur 5 Minute** ke live lottery results track karta hai, AI pattern detection ke sath **BIG / SMALL** aur **Lucky Numbers (0-9)** predict karta hai, BDGWin demo account par auto-bet place karke **Real Winning Screenshots** capture karta hai, aur Telegram channels me alag-alag messages + High-Impact Styled Buttons ke sath send karta hai.
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/avinashraz19818/predction)
+
+Ek high-speed, enterprise-grade Telegram Bot jo **WinGo 30s, 1 Minute, 3 Minute aur 5 Minute** ke live lottery results track karta hai, AI pattern detection ke sath **BIG / SMALL** aur **Lucky Numbers (0-9)** predict karta hai, Playwright headless browser ke through real game par bet lagata hai aur **Asli In-Game "Congratulations" Winning Popup ka Live Screenshot** capture karke Telegram channels me post karta hai!
 
 ---
 
-## ✨ Features (Kya Naya Hai?)
+## 🚀 1-Click Heroku Deployment
 
-1. **Real In-Game BDGWin Win Screenshots**:
-   - Background headless browser (Selenium + Edge) demo account me login karta hai.
-   - Har round me ₹1 ka bet auto-place karta hai.
-   - Win aane par **"My history"** tab se official winning record card (Period, Big/Small, Win badge, aur `+₹X.XX` green amount) ka live screenshot lekar Telegram channel me post karta hai!
-   - Agar website offline ho ya browser busy ho, to built-in Pillow HD result card auto-generate hota hai taaki koi round miss na ho!
+Neeche diye gaye link par click karke aap 1-click me Heroku par deploy kar sakte hain:
 
-2. **User Account Ki Need Khatam**:
-   - Pyrogram / Telethon user session ki zaroorat nahi hai. Poora system official **Telegram Bot API** par chalta hai.
-   - Bot direct channel me messages aur **Clickable Styled Buttons** bhej sakta hai.
+```
+https://heroku.com/deploy?template=https://github.com/avinashraz19818/predction
+```
 
-3. **Color Prediction Band & Lucky Numbers Added**:
-   - Color prediction (Red/Green/Violet) band kar diya gaya hai.
-   - Ab sirf **BIG / SMALL** predict hoga aur sath me **Top 2-3 High-Probability Lucky Numbers** (0-9) calculate hoke aayenge.
+---
 
-4. **Separate Messages (No Message Editing)**:
-   - Har round ka naya prediction message alag aayega.
-   - Result aane par **WIN celebration card** (ya real game screenshot) aur **LOSS recovery alert** alag se post hota hai.
+## ✨ Key Advanced Features
 
-5. **Multi-Game & Multi-Channel Selection**:
-   - Channels add karte waqt admin choose kar sakta hai ki kaun sa channel kaun sa game chalayega:
-     - ⏱️ **WinGo 30s**
-     - ⏱️ **WinGo 1 Min**
-     - ⏱️ **WinGo 3 Min**
-     - ⏱️ **WinGo 5 Min**
-   - Har channel apne selected time duration ke hisab se independent cycle me signals bhejta hai.
+### 1. 📸 Real Playwright Live Win Popup Screen Capture (smex style)
+- Headless Chromium persistent browser session ke sath game me logged in rehta hai.
+- Game me real bet lagata hai aur round khatam hone par **actual native "Congratulations" winning popup** (`.winning`, `.winning-body.isWin`, `.WinningTip__C`) ko 80ms fast detector se monitor karta hai.
+- Asli game screen ka high-resolution screenshot direct Telegram channel par deliver hota hai!
+- Agar browser busy ho ya reconnect ho raha ho, to authentic built-in HD card generator backup provide karta hai taaki koi round miss na ho.
 
-6. **Telegram Styled Colored Buttons**:
-   - Har prediction post ke sath attractive inline keyboard buttons:
-     - `[ 🟢 𝗥𝗘𝗚𝗜𝗦𝗧𝗘𝗥 & 𝗣𝗟𝗔𝗬 (𝗦𝗨𝗖𝗖𝗘𝗦𝗦) 🟢 ]`
-     - `[ 🔴 𝗟𝗜𝗩𝗘 𝗥𝗘𝗦𝗨𝗟𝗧 𝗣𝗥𝗢𝗢𝗙 (𝗗𝗔𝗡𝗚𝗘𝗥) 🔴 ]`
-     - `[ 🎁 𝗖𝗟𝗔𝗜𝗠 ₹𝟱𝟬𝟬 𝗕𝗢𝗡𝗨𝗦 🎁 ]`
-     - `[ 👑 𝗢𝗙𝗙𝗜𝗖𝗜𝗔𝗟 𝗩𝗜𝗣 𝗖𝗛𝗔𝗡𝗡𝗘𝗟 👑 ]`
+### 2. 🕒 24/7 Mode VS Scheduled Daily VIP Sessions (IST)
+Admin panel se 1 click me mode change karein:
+- **⚡ 24/7 Mode:** Non-stop lagatar har round ke signals aate hain.
+- **🕒 Scheduled VIP Sessions (Daily IST):**
+  - **Session 1 (Morning):** `11:00 AM – 11:30 AM IST`
+  - **Session 2 (Afternoon):** `02:00 PM – 02:30 PM IST`
+  - **Session 3 (Evening):** `05:00 PM – 05:30 PM IST`
+  - **Session 4 (Night VIP):** `08:30 PM – 09:00 PM IST`
+  - **15-Min Advance Alert:** Session shuru hone se 15 minute pehle wallet fund maintain karne ka alert message channel me jata hai.
+  - **Session Live Kickoff:** Session start hote hi live announcement post hoti hai.
+  - **Session Wrap-up Summary:** Session complete hone par total rounds, total wins, accuracy %, max streak aur net profit ka attractive report card share hota hai!
 
-7. **Martingale Level Protection**:
-   - Dynamic Level 1 se Level 5 tracking taaki users safe recovery kar sakein.
-   - Win hone par turant Level 1 par reset.
+### 3. 👑 Telegram Premium Animated Emojis & Sleek VIP UI
+- VIP Crown, Golden Trophy, Fire Streak, Animated Target aur Lightning icons.
+- Clean Unicode bold typography, uniform progress bars aur separator lines.
+- Automatic fallback mechanism taaki bina premium accounts me bhi clean formatting bani rahe.
+
+### 4. 🔘 Native Styled Colored Action Buttons
+- Green (Success Style), Red (Danger Style), Blue (Primary Style) buttons:
+  - `[ 🟢 REGISTER VIP ACCOUNT 🟢 ]`
+  - `[ 🔴 LIVE PROOF CHANNEL 🔴 ]`
+  - `[ 🎁 CLAIM VIP BONUS 🎁 ]`
+
+### 5. 🛡️ 3-5 Level Martingale Safe Recovery
+- Dynamic level tracking.
+- Win hone par automatically Level 1 par reset.
 
 ---
 
 ## 📁 Project Architecture
 
 ```
-dee/
-├── .env                  # Bot tokens, MongoDB URI, BDGWin credentials
-├── config.py             # Configuration & Game URLs loader
-├── main.py               # Main bot application runner
+predction/
+├── Procfile               # Heroku worker process definition
+├── app.json               # Heroku 1-Click Deploy template
+├── runtime.txt            # Python 3.11 runtime
+├── requirements.txt       # Dependencies (Playwright, PTB, PyMongo, Pillow, pytz)
+├── config.py              # Configuration & Game URLs loader
+├── main.py                # Main bot application runner
 ├── database/
-│   └── mongo.py          # MongoDB channel management & stats
+│   └── mongo.py           # MongoDB channel management, sessions & stats
 ├── engine/
-│   └── predictor.py      # AI Trend & Lucky Numbers predictor
+│   └── predictor.py       # AI Trend & Lucky Numbers predictor
 ├── services/
-│   ├── lottery_api.py    # WinGo 30s, 1m, 3m, 5m live fetcher
-│   └── bet_automation.py # BDGWin Auto-Bet & Live Screenshot capture
+│   ├── lottery_api.py     # WinGo 30s, 1m, 3m, 5m live data fetcher
+│   ├── playwright_worker.py # Playwright Real Bet & Win Popup Capture Engine
+│   └── bet_automation.py  # Automation coordination & fallback layer
 ├── bot/
-│   ├── handlers.py       # /admin interactive controls
-│   ├── keyboards.py      # Styled Channel & Admin keyboards
-│   ├── templates.py      # VIP text cards with progress bars
-│   ├── scheduler.py      # Multi-game prediction loop
-│   └── card_generator.py # Pillow HD win card generator
-└── start.bat / start     # Windows / Linux startup scripts
+│   ├── handlers.py        # /admin interactive controls (Mode, Sessions, Browser)
+│   ├── keyboards.py       # Styled Channel, Sessions & Admin keyboards
+│   ├── templates.py       # VIP cards (Signals, Wins, Alerts, Wrap-up)
+│   ├── scheduler.py       # Multi-game & Session controller loop
+│   └── card_generator.py  # Pillow HD win card generator
+└── start.bat / start      # Windows / Linux startup scripts
 ```
 
 ---
 
-## 🚀 How to Run
+## 🛠️ Quick VPS Setup (Ubuntu / Debian)
 
-### 1. Install Requirements:
 ```bash
+git clone https://github.com/avinashraz19818/predction.git
+cd predction
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+playwright install-deps chromium
+playwright install chromium
+chmod +x start
+./start
 ```
 
-### 2. Configure `.env`:
-Credentials automatically configured:
-```env
-BOT_TOKEN=8030162642:AAG4Gbe2pyQv8ZreGyw8vTEhKvVKY2Eiugw
-ADMIN_IDS=8089603563,8015937475
-MONGO_URI=mongodb+srv://avinash:avinash12@cluster0.wnwd1fv.mongodb.net/?appName=Cluster0
-DEFAULT_REGISTER_LINK=https://bdgwin7.com/#/register?invitationCode=833131014850
+---
 
-# BDGWin Auto-Betting & Win Screenshot Settings
-DEMO_AUTO_BET=true
-DEMO_LOGIN_URL=https://bdgwina.biz/#/login
-DEMO_USERNAME=6556745550
-DEMO_PASSWORD=win1222
-```
+## 📱 Bot Admin Panel (`/admin`)
 
-### 3. Start the Bot:
-* **Windows**: `python main.py` ya double click `start.bat`
-* **Linux/VPS**: `./start`
-
-### 4. Admin Setup (Telegram me):
-1. Telegram me bot ko open karke `/start` ya `/admin` bhejein.
-2. `➕ Add New Channel` dabayein aur channel ID/username bhejein (jaise `@mywingochannel`).
-3. Select karein ki us channel ke liye kaun sa game chalana hai:
-   - `[ ⏱️ WinGo 30s ]`
-   - `[ ⏱️ WinGo 1 Min ]`
-   - `[ ⏱️ WinGo 3 Min ]`
-   - `[ ⏱️ WinGo 5 Min ]`
-4. Make sure Bot channel me **Administrator** hai messages post karne ke liye.
-5. Bot live prediction signals, auto-betting aur real screenshots post karna shuru kar dega!
+Bot ko `/admin` ya `/start` command bhejein:
+- **⚡ Toggle Mode:** 24/7 Mode aur Scheduled Sessions ke beech switch karein.
+- **🕒 Sessions:** Session timings aur target rounds dekhein.
+- **🎮 Browser Status:** Real Playwright live game connection check karein aur live test bet + screenshot execute karein.
+- **📢 Channels:** Naye channels add karein, games assign karein (30s, 1M, 3M, 5M) aur colored buttons set karein.
+- **📊 System Stats:** Total lifetime predictions, wins, aur accuracy rates dekhein.

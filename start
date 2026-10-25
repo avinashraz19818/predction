@@ -16,6 +16,9 @@ if [ -d ".venv" ]; then
     . .venv/bin/activate
 fi
 
+# Ensure Playwright Chromium browser is installed
+python3 -m playwright install chromium 2>/dev/null || true
+
 nohup python3 "$BOT_FILE" >> "$LOG_FILE" 2>&1 &
 echo $! > "$PID_FILE"
-echo "✅ Bot started successfully! PID: $(cat "$PID_FILE")"
+echo "✅ WinGo VIP Prediction Bot started successfully! PID: $(cat "$PID_FILE")"

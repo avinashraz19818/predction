@@ -46,8 +46,50 @@ WINGO_GAMES = {
     }
 }
 
-# Demo Account Automation settings (Defaults to user's provided BDGWin demo account)
-DEMO_AUTO_BET = os.getenv("DEMO_AUTO_BET", "true").lower() == "true"
+# Real Game Bet & Winning Screenshot Automation (Playwright)
+DEMO_AUTO_BET = os.getenv("DEMO_AUTO_BET", "true").lower() in ("true", "1", "yes")
 DEMO_LOGIN_URL = os.getenv("DEMO_LOGIN_URL", "https://bdgwina.biz/#/login")
 DEMO_USERNAME = os.getenv("DEMO_USERNAME", "6556745550")
 DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "win1222")
+DEMO_BET_AMOUNT = int(os.getenv("DEMO_BET_AMOUNT", "1")) # Base bet in INR
+HEADLESS = os.getenv("HEADLESS", "true").lower() in ("true", "1", "yes")
+BROWSER_PROFILE_DIR = os.getenv("BROWSER_PROFILE_DIR", os.path.join(os.path.dirname(__file__), "browser_profile"))
+CHROMIUM_PATH = os.getenv("CHROMIUM_PATH", os.getenv("PLAYWRIGHT_CHROMIUM_PATH", ""))
+
+# Session Scheduler Configuration
+TIMEZONE = os.getenv("TIMEZONE", "Asia/Kolkata")
+# Operating Mode: "24_7" (Continuous) or "scheduled" (Daily VIP Sessions)
+DEFAULT_OPERATING_MODE = os.getenv("OPERATING_MODE", "24_7").lower()
+PRE_ALERT_MINUTES = int(os.getenv("PRE_ALERT_MINUTES", "15"))
+
+# Default Daily VIP Sessions (IST)
+DEFAULT_SESSIONS = [
+    {
+        "id": 1,
+        "name": "Session 1 (Morning)",
+        "start": "11:00",
+        "end": "11:30",
+        "max_rounds": 15
+    },
+    {
+        "id": 2,
+        "name": "Session 2 (Afternoon)",
+        "start": "14:00",
+        "end": "14:30",
+        "max_rounds": 15
+    },
+    {
+        "id": 3,
+        "name": "Session 3 (Evening)",
+        "start": "17:00",
+        "end": "17:30",
+        "max_rounds": 15
+    },
+    {
+        "id": 4,
+        "name": "Session 4 (Night VIP)",
+        "start": "20:30",
+        "end": "21:00",
+        "max_rounds": 15
+    }
+]

@@ -1,26 +1,49 @@
-# 🚀 VPS Deployment & Setup Guide (Ubuntu / Debian)
+# 🚀 WinGo VIP AI Prediction System - Deployment & User Guide
 
-Yeh guide use karke aap apne Linux/Ubuntu VPS par **WinGo VIP Prediction Bot** ko 2 minute me install aur background me 24/7 run kar sakte hain.
+Enterprise-grade Color Prediction Telegram Bot with **Real Game Bet Automation & Live Winning Popup Screen Capture** (powered by Playwright), **24/7 or Scheduled Daily VIP Sessions** (IST), **Telegram Premium Animated Emojis**, and Multi-Game Support (WinGo 30s, 1M, 3M, 5M).
 
 ---
 
-## 📋 1. Quick One-Line Setup (Sab Kuch Ek Sath)
+## ⚡ Option 1: Direct 1-Click Heroku Deployment
 
-Agar aap fresh VPS par hain to direct yeh commands copy-paste karein:
+Click the button below or open the URL in your browser to deploy instantly on Heroku with 0 hassle:
+
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/avinashraz19818/predction)
+
+**Direct Deployment Link:**
+```
+https://heroku.com/deploy?template=https://github.com/avinashraz19818/predction
+```
+
+### Steps on Heroku:
+1. Open the deploy link above.
+2. Enter your **BOT_TOKEN** (from [@BotFather](https://t.me/BotFather)).
+3. Enter your **ADMIN_IDS** (e.g. `8089603563,8015937475`).
+4. Keep the pre-configured **MONGO_URI** or provide your own.
+5. Click **Deploy app**.
+6. Once deployed, go to the **Resources** tab and turn ON the `worker: python main.py` dyno!
+
+---
+
+## 🖥️ Option 2: VPS One-Line Setup (Ubuntu / Debian)
+
+If running on a VPS server (DigitalOcean, AWS, Hetzner, Contabo, etc.), run these commands:
 
 ```bash
 # 1. Update system & install dependencies
-sudo apt update && sudo apt install -y python3 python3-pip python3-venv git chromium-browser chromium-chromedriver
+sudo apt update && sudo apt install -y python3 python3-pip python3-venv git
 
 # 2. Clone Repository
 git clone https://github.com/avinashraz19818/predction.git
 cd predction
 
-# 3. Virtual Environment setup
+# 3. Create Virtual Environment & Install requirements
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
+playwright install-deps chromium
+playwright install chromium
 
 # 4. Create .env Configuration File
 cat << 'EOF' > .env
@@ -33,69 +56,60 @@ MONGO_DB_NAME=maxie1min
 DEFAULT_REGISTER_LINK=https://bdgwin7.com/#/register?invitationCode=833131014850
 DEFAULT_PROMO_TEXT=🔥 Maintain 3-5 Level Fund for 100% Daily Profit!
 
+OPERATING_MODE=24_7
+TIMEZONE=Asia/Kolkata
+
 DEMO_AUTO_BET=true
 DEMO_LOGIN_URL=https://bdgwina.biz/#/login
 DEMO_USERNAME=6556745550
 DEMO_PASSWORD=win1222
 EOF
 
-# 5. Make start script executable & Run Bot in Background
+# 5. Start Bot in Background
 chmod +x start
 ./start
 ```
 
 ---
 
-## 🔄 2. Existing VPS par Code Update (Git Pull) Kaise Karein?
+## 🎯 3. Operating Modes: 24/7 vs Scheduled VIP Sessions
 
-Agar aapne pehle se clone kiya hua hai aur sirf naya code pull karna hai:
+You can toggle between modes anytime directly inside the Telegram Bot `/admin` panel with **1 click**:
 
-```bash
-cd predction
-git pull origin main
-source .venv/bin/activate
-pip install -r requirements.txt
-./start
-```
+### Mode A: ⚡ 24/7 Continuous Mode
+- Bot runs non-stop 24 hours a day.
+- Every single round generates an AI signal, places a real bet, detects the real winning popup, and sends the celebration card + screenshot.
 
----
-
-## 🛠️ 3. Daily Useful Management Commands
-
-### 📜 Live Logs Check Karna:
-Bot real-time me kya kar raha hai (signals, predictions, screenshots) dekhne ke liye:
-```bash
-tail -f bot.log
-```
-*(Log band karne ke liye keyboard par `Ctrl + C` dabayein)*
-
-### 🛑 Bot ko Stop / Kill Karna:
-```bash
-kill $(cat bot.pid) 2>/dev/null || pkill -f main.py
-```
-
-### ⚡ Bot ko Restart Karna:
-```bash
-./start
-```
-
-### 🔍 Check Karna ki Bot Chal Raha Hai ya Nahi:
-```bash
-ps aux | grep main.py
-```
+### Mode B: 🕒 Scheduled VIP Sessions (Daily IST)
+- Bot runs organized VIP prediction sessions per day:
+  - **Session 1 (Morning):** `11:00 AM – 11:30 AM IST`
+  - **Session 2 (Afternoon):** `02:00 PM – 02:30 PM IST`
+  - **Session 3 (Evening):** `05:00 PM – 05:30 PM IST`
+  - **Session 4 (Night VIP):** `08:30 PM – 09:00 PM IST`
+- **15-Minute Advance Alert:** At `10:45 AM`, the bot broadcasts:
+  > 🚨 *VIP PREDICTION SESSION ALERT! Starting in 15 Minutes at 11:00 AM. Maintain 5-6 Level Funds.*
+- **Session Live Kickoff:** At `11:00 AM`, the bot broadcasts:
+  > 🟢 *SESSION 1 IS NOW LIVE! Follow strictly with 3X Martingale.*
+- **Live Signals & Real Win Screenshots** are posted during the 30-minute session.
+- **Session Completion Report:** Automatically wraps up with:
+  > 🏆 *SESSION 1 SUMMARY: 15 Rounds | 14 Wins | 93.3% Accuracy | Net Profit: +₹4,500 | Next Session: 02:00 PM IST.*
 
 ---
 
-## 📱 4. Telegram me Bot Setup Kaise Karein?
+## 🎮 4. Real Win Popup Screenshot (Playwright)
 
-1. Telegram par apne bot ko open karein: `https://t.me/YOUR_BOT_USERNAME`
-2. Bot ko `/start` ya `/admin` command bhejein.
-3. `➕ Add New Channel` par click karein.
-4. Apne channel ka username ya ID bhejein (Jaise: `@mywingochannel`).
-5. WinGo Duration select karein:
-   - `⏱️ WinGo 30s`
-   - `⏱️ WinGo 1 Min`
-   - `⏱️ WinGo 3 Min`
-   - `⏱️ WinGo 5 Min`
-6. Make sure Bot aapke channel me **Administrator** hai with "Post Messages" permission.
-7. Bot turant live prediction signals aur screenshots post karna start kar dega!
+- Unlike simple bots that send text only or fake canvas images, this system uses a **headless mobile Chromium browser (Playwright)**.
+- It logs into your game account, selects the period, places the real bet, and uses a fast detector (`80ms` loop) to catch the actual **native "Congratulations" winning popup** on the live game screen.
+- The authentic winning popup screenshot is captured and posted directly to your Telegram channel!
+- If the browser is temporarily disconnected or re-authenticating, a pixel-perfect backup renderer ensures channel posts never miss.
+
+---
+
+## 📱 5. Telegram Bot Admin Commands
+
+Send `/start` or `/admin` to your bot:
+- **⚡ Mode Toggle:** Switch between 24/7 and Scheduled Sessions with 1 click.
+- **🕒 Sessions:** View and adjust scheduled session hours.
+- **🎮 Playwright Status:** Check live game login status and test bet + screenshot capture directly in chat.
+- **📢 Manage Channels:** Add channels, assign WinGo 30s/1m/3m/5m, and customize colored action buttons.
+- **📊 System Stats:** Real-time analytics, overall win rates, and streak counters.
