@@ -78,13 +78,16 @@ class PlaywrightWinGoWorker:
             return config.CHROMIUM_PATH
 
         for candidate in [
+            shutil.which("google-chrome"),
+            shutil.which("google-chrome-stable"),
             shutil.which("chromium"),
             shutil.which("chromium-browser"),
-            shutil.which("google-chrome"),
             shutil.which("chrome"),
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/opt/google/chrome/chrome",
             "/usr/bin/chromium-browser",
             "/usr/bin/chromium",
-            "/usr/bin/google-chrome",
             "/snap/bin/chromium",
             r"C:\Program Files\Google\Chrome\Application\chrome.exe",
             r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
