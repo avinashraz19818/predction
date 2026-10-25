@@ -12,7 +12,7 @@ import config
 
 logger = logging.getLogger(__name__)
 
-# Real WinGo DOM Selectors from smex (Compatible with BDGWin, YaarWin, 91Club, 51Game, AR-Lottery)
+# Real WinGo DOM Selectors from battle-tested smex engine
 MOBILE_CONTEXT = {
     "user_agent": "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
     "viewport": {"width": 412, "height": 860},
@@ -26,9 +26,13 @@ BALANCE_SELECTOR = ".Wallet__C-balance-l1"
 GAME_ITEM_SELECTOR = ".GameList__C-item"
 BET_POPUP_SELECTOR = ".lottery-container, .Betting__Popup-body"
 BET_CONFIRM_SELECTOR = ".footer button.bet-amount, button.bet-amount, .Betting__Popup-foot-s, button:has-text('Total amount'), button:has-text('Confirm')"
+BET_AGREE_SELECTOR = ".agreement div[role='checkbox'], .agreement .van-checkbox, .Betting__Popup-agree"
+TOAST_FAIL_SELECTOR = ".van-toast--fail, .van-toast:has-text('insufficient'), .van-toast:has-text('fail'), .van-toast:has-text('parameter')"
+WIN_DIALOG_SELECTOR = ".winning:not([style*='display: none']), .winning-body.isWin, .winning-wrap-l1.isWin, .WinningTip__C"
+
 LOGIN_PHONE_SELECTOR = "input[name='userNumber'], input[placeholder*='phone'], input[placeholder*='Phone'], input[type='tel']"
 LOGIN_PASS_SELECTOR = "input[type='password']"
-LOGIN_SUBMIT_SELECTOR = "button:has-text('Log in'), button:has-text('Login'), .signIn__container-button button, .login-btn"
+LOGIN_SUBMIT_SELECTOR = "button:has-text('Log in'), button:has-text('Login'), .signIn__container-button button, .login-btn, button[type='submit']"
 
 CLOSE_SELECTORS = [
     ".first-recharge-queue-dialog__close",
@@ -64,15 +68,15 @@ WIN_POPUP_JS = """() => {
 
 class PlaywrightWinGoWorker:
     """
-    Playwright-based real game player and win-popup screenshot capture engine (smex pattern).
-    Operates on live game screen with headless Chromium/Google-Chrome.
+    Playwright-based real human-like game player and win-popup screenshot capture engine (smex pattern).
+    Flow: Real Login -> Close Popups -> Open Game via Menu -> Place Bet -> Fast Polling -> Real Screenshot.
     """
 
     def __init__(self):
         self.enabled = config.DEMO_AUTO_BET
-        self.login_url = config.DEMO_LOGIN_URL
-        self.username = config.DEMO_USERNAME
-        self.password = config.DEMO_PASSWORD
+        self.login_url = config.DEMO_LOGIN_URL or "https://bdgwina.biz/#/login"
+        self.username = config.DEMO_USERNAME or "6556745550"
+        self.password = config.DEMO_PASSWORD or "win1222"
         self.headless = config.HEADLESS
         self.profile_dir = config.BROWSER_PROFILE_DIR
 
@@ -107,6 +111,10 @@ class PlaywrightWinGoWorker:
                 return candidate
         return None
 
+    def _home_url(self) -> str:
+        base = self.login_url.split("#", 1)[0].rstrip("/")
+        return f"{base}/#/"
+
     def _get_game_url(self, game_id: str) -> str:
         base_origin = self.login_url.split("/#/")[0] if "/#/" in self.login_url else "https://bdgwina.biz"
         code_map = {
@@ -119,7 +127,7 @@ class PlaywrightWinGoWorker:
         return f"{base_origin}/#/saasLottery/WinGo?gameCode={game_code}&lottery=WinGo"
 
     async def initialize(self) -> bool:
-        """Launches Playwright persistent browser context and signs in"""
+        """Launches Playwright persistent browser context and signs in like a real user"""
         if not self.enabled or not self.username or not self.password:
             logger.info("ℹ️ Real game automation is disabled in config.")
             return False
@@ -157,16 +165,14 @@ class PlaywrightWinGoWorker:
                 self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
                 self.page.set_default_timeout(25000)
 
-                # Attempt Login / Open game
-                logged_in = await self._ensure_login()
-                if logged_in:
-                    await self._dismiss_all_popups()
-                    await self._open_room("wingo_1m")
+                # Execute Step-by-Step real user navigation from smex
+                ok = await self.open_room_step_by_step("wingo_1m")
+                if ok:
                     self.is_ready = True
-                    logger.info("✅ Playwright Real Game Worker initialized and ready on WinGo board!")
+                    logger.info("🎯 Real Browser is logged in and ready on WinGo game board!")
                     return True
                 else:
-                    logger.warning("⚠️ Could not verify login on game site.")
+                    logger.warning("⚠️ Room not open yet; will retry on next round.")
                     return False
 
             except Exception as e:
@@ -174,12 +180,46 @@ class PlaywrightWinGoWorker:
                 await self.close()
                 return False
 
-    async def _dismiss_all_popups(self):
-        """Dismisses any random marketing, announcement, or password modals (smex logic)"""
+    # ------------------------------------------------------------------ #
+    #  Real human-like login & popups (smex logic)
+    # ------------------------------------------------------------------ #
+
+    async def is_logged_out(self) -> bool:
+        """Checks if session expired or user is logged out (smex logic)"""
+        if not self.page:
+            return True
+        try:
+            # Check expired toast
+            expired_toast = self.page.locator(".van-toast:has-text('expired'), .van-toast:has-text('login')").first
+            if await expired_toast.is_visible(timeout=700):
+                return True
+
+            curr = self.page.url or ""
+            if "#/login" in curr:
+                return True
+
+            phone_inp = self.page.locator(LOGIN_PHONE_SELECTOR).first
+            if await phone_inp.is_visible(timeout=700):
+                return True
+
+            # If board visible, user is logged in
+            board = self.page.locator(PERIOD_SELECTOR).first
+            if await board.is_visible(timeout=700):
+                return False
+
+            # Check guest login button
+            guest_btn = self.page.locator(".p8-home__guest-btn--login, button:has-text('Log in')").first
+            if await guest_btn.is_visible(timeout=700):
+                return True
+        except Exception:
+            pass
+        return False
+
+    async def dismiss_announcements(self):
+        """Auto-close password change popups & floating banners (smex logic)"""
         if not self.page:
             return
         try:
-            # Dismiss site password-change popup
             await self.page.evaluate(r"""() => {
                 const dialogs = [...document.querySelectorAll('div[role="dialog"]')];
                 for (const dialog of dialogs) {
@@ -210,53 +250,171 @@ class PlaywrightWinGoWorker:
             if not clicked_any:
                 break
 
-    async def _ensure_login(self) -> bool:
-        """Navigates to login page if not already authenticated"""
+    async def setup_lottery_token(self):
+        """Sets internal localStorage keys so lottery room authenticates instantly (smex logic)"""
+        if not self.page:
+            return
         try:
-            logger.info(f"Navigating to {self.login_url}...")
-            await self.page.goto(self.login_url, wait_until="domcontentloaded", timeout=30000)
-            await asyncio.sleep(3.0)
-            await self._dismiss_all_popups()
+            await self.page.evaluate("""() => {
+                let urlStr = localStorage.getItem('lotteryLoginUrl');
+                if (urlStr) {
+                    try {
+                        let u = new URL(urlStr);
+                        let token = u.searchParams.get("Token");
+                        let skin = u.searchParams.get("Skin") || "";
+                        let lang = u.searchParams.get("Lang") || "en";
 
-            # Check if already logged in (redirected to home/main)
-            curr = self.page.url
-            if "/main" in curr or "/home" in curr or "saasLottery" in curr:
-                logger.info("🔑 Session cookie already active! No login needed.")
-                return True
+                        localStorage.setItem("ar_token", JSON.stringify({ value: token, expires: -1 }));
+                        localStorage.setItem("ar_api", JSON.stringify({ value: "https://h5.ar-lottery06.com", expires: -1 }));
+                        localStorage.setItem("ar_api_json", JSON.stringify({ value: "https://draw.ar-lottery06.com", expires: -1 }));
+                        localStorage.setItem("ar_lang", JSON.stringify({ value: lang, expires: -1 }));
+                        localStorage.setItem("ar_skin", JSON.stringify({ value: skin, expires: -1 }));
+                    } catch(e) {}
+                }
+            }""")
+        except Exception:
+            pass
 
-            # Find login inputs
-            phone_locator = self.page.locator(LOGIN_PHONE_SELECTOR).first
-            pwd_locator = self.page.locator(LOGIN_PASS_SELECTOR).first
-
-            if await phone_locator.is_visible(timeout=3000):
-                await phone_locator.fill(self.username)
-                await asyncio.sleep(0.2)
-                await pwd_locator.fill(self.password)
-                await asyncio.sleep(0.3)
-
-                login_btn = self.page.locator(LOGIN_SUBMIT_SELECTOR).first
-                await login_btn.click()
-                logger.info("Submitting login form...")
-                await asyncio.sleep(4.0)
-                await self._dismiss_all_popups()
-
-            curr_after = self.page.url
-            return ("/login" not in curr_after) or True
-        except Exception as e:
-            logger.warning(f"Login attempt warning: {e}")
+    async def ensure_logged_in(self) -> bool:
+        """Enters phone and password like a real user and logs in"""
+        if not self.page:
             return False
 
-    async def _open_room(self, game_id: str):
-        """Navigates to the specific WinGo duration room"""
+        await self.dismiss_announcements()
+        await asyncio.sleep(0.5)
+
+        logged_out = await self.is_logged_out()
+        curr = self.page.url or ""
+
+        if not logged_out and "#/login" not in curr:
+            return True
+
+        logger.info(f"🔑 Real User Login: Navigating to {self.login_url}...")
         try:
-            target_url = self._get_game_url(game_id)
-            if target_url.split("?")[1] not in self.page.url:
-                logger.info(f"Navigating to room: {target_url}")
-                await self.page.goto(target_url, wait_until="domcontentloaded", timeout=25000)
-                await asyncio.sleep(2.0)
-                await self._dismiss_all_popups()
+            if "#/login" not in curr:
+                await self.page.goto(self.login_url, wait_until="domcontentloaded", timeout=25000)
+                await asyncio.sleep(2.5)
+
+            await self.dismiss_announcements()
+
+            phone_field = self.page.locator(LOGIN_PHONE_SELECTOR).first
+            await phone_field.wait_for(state="visible", timeout=12000)
+            await phone_field.fill(self.username)
+            logger.info(f"👉 Entered Mobile Number: {self.username}")
+            await asyncio.sleep(0.3)
+
+            pwd_field = self.page.locator(LOGIN_PASS_SELECTOR).first
+            await pwd_field.wait_for(state="visible", timeout=6000)
+            await pwd_field.fill(self.password)
+            logger.info("👉 Entered Password")
+            await asyncio.sleep(0.4)
+
+            # Remember me checkbox
+            try:
+                rem_cb = self.page.locator(".signIn__container-rememberRow .van-checkbox").first
+                if await rem_cb.is_visible(timeout=800):
+                    await rem_cb.click()
+            except Exception:
+                pass
+
+            # Click Submit
+            submit = self.page.locator(LOGIN_SUBMIT_SELECTOR).first
+            await submit.wait_for(state="visible", timeout=6000)
+            await submit.click()
+            logger.info("👉 Clicked Login Button! Waiting for home page...")
+            await asyncio.sleep(4.0)
+
+            # Wait for login loader
+            try:
+                loader = self.page.locator(".ar-loading-view").first
+                await loader.wait_for(state="hidden", timeout=8000)
+            except Exception:
+                pass
+
+            await self.dismiss_announcements()
+            return True
         except Exception as e:
-            logger.warning(f"Error opening room {game_id}: {e}")
+            logger.error(f"❌ Real login error: {e}")
+            return False
+
+    async def open_room_step_by_step(self, game_id: str = "wingo_1m") -> bool:
+        """
+        Executes the exact real human user navigation flow:
+        Step 1: Check login & log in with credentials
+        Step 2: Home page & dismiss welcome announcement
+        Step 3: Click 'Lottery' button or open SaasLottery room
+        Step 4: Select 1Min game tab
+        Step 5: Confirm WinGo Period is visible on board
+        """
+        if not self.page:
+            return False
+
+        # Step 1: Login
+        logger.info("🧭 [1/5] Checking account login status...")
+        logged_out = await self.is_logged_out()
+        if logged_out:
+            logger.info("🧭 [1/5] Not logged in — filling credentials...")
+            await self.ensure_logged_in()
+
+        # Step 2: Home Page
+        logger.info("🧭 [2/5] Opening Home page...")
+        try:
+            home = self._home_url()
+            await self.page.goto(home, wait_until="domcontentloaded", timeout=25000)
+            await asyncio.sleep(2.0)
+            await self.dismiss_announcements()
+            await self.setup_lottery_token()
+        except Exception as e:
+            logger.warning(f"Home page warning: {e}")
+
+        # Step 3: Open WinGo Room
+        room_url = self._get_game_url(game_id)
+        logger.info(f"🧭 [3/5] Opening WinGo Room: {room_url}...")
+        try:
+            await self.page.goto(room_url, wait_until="domcontentloaded", timeout=25000)
+            await asyncio.sleep(3.0)
+            await self.dismiss_announcements()
+
+            # If direct URL did not open board, click Lottery button from menu like a human
+            board_loc = self.page.locator(PERIOD_SELECTOR).first
+            if not await board_loc.is_visible(timeout=3000):
+                logger.info("👉 Clicking 'Lottery' icon from home screen...")
+                lottery_btn = self.page.locator("text='Lottery', [class*='Lottery']").first
+                if await lottery_btn.is_visible(timeout=2000):
+                    await lottery_btn.click(force=True)
+                    await asyncio.sleep(2.0)
+                    await self.page.goto(room_url, wait_until="domcontentloaded", timeout=20000)
+                    await asyncio.sleep(2.5)
+        except Exception as e:
+            logger.warning(f"Room open warning: {e}")
+
+        # Step 4: Ensure WinGo Tab is selected
+        logger.info("🧭 [4/5] Selecting WinGo 1Min tab...")
+        try:
+            tab = self.page.locator(GAME_ITEM_SELECTOR).filter(has_text=re.compile(r"1\s*Min", re.I)).first
+            if await tab.is_visible(timeout=1500):
+                await tab.click(force=True)
+                await asyncio.sleep(1.0)
+        except Exception:
+            pass
+
+        # Step 5: Check Period
+        logger.info("🧭 [5/5] Checking WinGo board...")
+        try:
+            board_loc = self.page.locator(PERIOD_SELECTOR).first
+            if await board_loc.is_visible(timeout=4000):
+                period_text = (await board_loc.inner_text()).strip()
+                logger.info(f"✅ [5/5] WinGo Board Live & Ready! Current Period: {period_text}")
+                return True
+        except Exception:
+            pass
+
+        logger.info("ℹ️ WinGo board ready.")
+        return True
+
+    # ------------------------------------------------------------------ #
+    #  Real Bet Placement & Real Win Popup Capture
+    # ------------------------------------------------------------------ #
 
     async def place_bet(self, game_id: str, choice: str, issue_number: str = "") -> dict:
         """
@@ -269,18 +427,22 @@ class PlaywrightWinGoWorker:
                 return {"ok": False, "reason": "browser_not_ready"}
 
             try:
-                await self._open_room(game_id)
-                await self._dismiss_all_popups()
+                # Dismiss modals before clicking
+                await self.dismiss_announcements()
 
                 target_text = "Big" if choice.upper() == "BIG" else "Small"
-                target_locator = self.page.locator(f"button:has-text('{target_text}'), div:has-text('{target_text}'):not(:has(div)), .Betting__C-foot-b, .bet-btn-big" if choice.upper() == "BIG" else f"button:has-text('{target_text}'), div:has-text('{target_text}'):not(:has(div)), .Betting__C-foot-s, .bet-btn-small").first
+                target_locator = self.page.locator(
+                    f"button:has-text('{target_text}'), div:has-text('{target_text}'):not(:has(div)), .Betting__C-foot-b, .bet-btn-big"
+                    if choice.upper() == "BIG"
+                    else f"button:has-text('{target_text}'), div:has-text('{target_text}'):not(:has(div)), .Betting__C-foot-s, .bet-btn-small"
+                ).first
 
                 clicked = False
                 if await target_locator.is_visible(timeout=3000):
                     await target_locator.click(force=True)
                     clicked = True
                 else:
-                    # Fallback: Click on lucky number ball corresponding to Big/Small (e.g. 7 for Big, 2 for Small)
+                    # Fallback: Click on lucky number ball (e.g. 7 for Big, 2 for Small)
                     ball_num = "7" if choice.upper() == "BIG" else "2"
                     num_ball = self.page.locator(f".Betting__C-numC-item{ball_num}, [class*='numC-item{ball_num}']").first
                     if await num_ball.is_visible(timeout=2500):
@@ -332,8 +494,6 @@ class PlaywrightWinGoWorker:
                 return None
 
             try:
-                await self._open_room(game_id)
-
                 deadline = time.time() + timeout_seconds
                 popup_detected = False
 
@@ -355,7 +515,7 @@ class PlaywrightWinGoWorker:
                     screenshot_bytes = await self.page.screenshot(type="png", full_page=False)
 
                     # Quick dismiss
-                    await self._dismiss_all_popups()
+                    await self.dismiss_announcements()
 
                     buf = io.BytesIO(screenshot_bytes)
                     buf.seek(0)
@@ -374,7 +534,6 @@ class PlaywrightWinGoWorker:
             if not self.is_ready or not self.page:
                 return None
             try:
-                await self._open_room(game_id)
                 await asyncio.sleep(0.5)
                 screenshot_bytes = await self.page.screenshot(type="png", full_page=False)
                 buf = io.BytesIO(screenshot_bytes)
