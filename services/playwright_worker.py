@@ -5,14 +5,14 @@ import time
 import shutil
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, Dict
 from playwright.async_api import async_playwright, BrowserContext, Page
 
 import config
 
 logger = logging.getLogger(__name__)
 
-# Real WinGo DOM Selectors from battle-tested smex engine
+# Real WinGo DOM Selectors from smex engine
 MOBILE_CONTEXT = {
     "user_agent": "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
     "viewport": {"width": 412, "height": 860},
@@ -22,6 +22,7 @@ MOBILE_CONTEXT = {
 }
 
 PERIOD_SELECTOR = ".TimeLeft__C-id"
+TIME_SELECTOR = ".TimeLeft__C-time"
 BALANCE_SELECTOR = ".Wallet__C-balance-l1"
 GAME_ITEM_SELECTOR = ".GameList__C-item"
 BET_POPUP_SELECTOR = ".lottery-container, .Betting__Popup-body"
@@ -68,8 +69,8 @@ WIN_POPUP_JS = """() => {
 
 class PlaywrightWinGoWorker:
     """
-    Playwright-based real human-like game player and win-popup screenshot capture engine (smex pattern).
-    Flow: Real Login -> Close Popups -> Open Game via Menu -> Place Bet -> Fast Polling -> Real Screenshot.
+    Playwright-based real human-like game player with instant 0-second popup capture (smex pattern).
+    Flow: Real Login -> Place Bet -> Count Down Watcher -> Instant 80ms Win Popup Capture -> Telegram Delivery.
     """
 
     def __init__(self):
@@ -85,7 +86,10 @@ class PlaywrightWinGoWorker:
         self.page: Optional[Page] = None
         self.is_ready = False
         self._lock = asyncio.Lock()
-        self._last_bet_info = {}
+
+        # In-memory screenshot caches keyed by period string
+        self.cached_win_screenshots: Dict[str, io.BytesIO] = {}
+        self.cached_board_screenshots: Dict[str, io.BytesIO] = {}
 
     def _get_chromium_path(self) -> Optional[str]:
         if config.CHROMIUM_PATH and os.path.exists(config.CHROMIUM_PATH):
@@ -413,13 +417,112 @@ class PlaywrightWinGoWorker:
         return True
 
     # ------------------------------------------------------------------ #
-    #  Real Bet Placement & Real Win Popup Capture
+    #  Timing, Live Countdown, and Fast Draw Watcher
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _parse_countdown(text: str) -> Optional[int]:
+        if not text:
+            return None
+        digits = ''.join(filter(str.isdigit, text))
+        if not digits:
+            return None
+        if len(digits) >= 4:
+            mm = digits[-4:-2]
+            ss = digits[-2:]
+            try:
+                return int(mm) * 60 + int(ss)
+            except ValueError:
+                return None
+        try:
+            return int(digits)
+        except ValueError:
+            return None
+
+    async def seconds_left(self) -> Optional[int]:
+        """Reads the exact remaining seconds on the live board"""
+        if not self.page:
+            return None
+        try:
+            time_loc = self.page.locator(TIME_SELECTOR).first
+            if await time_loc.is_visible(timeout=500):
+                text = (await time_loc.inner_text()).strip()
+                parsed = self._parse_countdown(text)
+                if parsed is not None:
+                    return parsed
+
+            fallback_loc = self.page.locator(".van-count-down, .countDown, .time").first
+            if await fallback_loc.is_visible(timeout=500):
+                text = (await fallback_loc.inner_text()).strip()
+                return self._parse_countdown(text)
+        except Exception:
+            pass
+        return None
+
+    async def watch_and_capture_win_popup(self, target_issue: str):
+        """
+        Runs right after placing bet!
+        Sleeps until countdown reaches 2s before draw, then runs an ultra-fast 50ms loop
+        to catch the real 'Congratulations' Winning Popup in the exact 3-second window!
+        """
+        secs = await self.seconds_left()
+        if secs is None:
+            secs = 40
+
+        logger.info(f"⏱️ Live Round Watcher: {secs}s remaining until draw for period {target_issue}...")
+
+        # Sleep until 2 seconds before the countdown hits 0
+        if secs > 3:
+            sleep_duration = max(1.0, secs - 2.5)
+            await asyncio.sleep(sleep_duration)
+
+        logger.info(f"👀 Draw happening NOW for {target_issue}! Fast 50ms Win Popup detector active...")
+
+        # Ultra-fast polling at 50ms intervals
+        deadline = time.time() + 14.0
+        popup_detected = False
+
+        while time.time() < deadline:
+            try:
+                is_win = await self.page.evaluate(WIN_POPUP_JS)
+                if is_win:
+                    popup_detected = True
+                    break
+            except Exception:
+                pass
+            await asyncio.sleep(0.05)
+
+        if popup_detected:
+            logger.info(f"🎉 REAL CONGRATULATIONS WIN POPUP DETECTED for {target_issue}! Capturing at once...")
+            await asyncio.sleep(0.18)  # Let bonus amount animation settle
+            try:
+                shot_bytes = await self.page.screenshot(type="png", full_page=False)
+                buf = io.BytesIO(shot_bytes)
+                buf.seek(0)
+                self.cached_win_screenshots[str(target_issue)] = buf
+                logger.info(f"📸 100% Real In-Game Win Popup Screenshot cached for period {target_issue}!")
+                await self.dismiss_announcements()
+                return
+            except Exception as e:
+                logger.error(f"Error taking popup screenshot: {e}")
+        else:
+            logger.info(f"ℹ️ Popup not shown for {target_issue} (missed or loss). Caching live board shot...")
+            try:
+                shot_bytes = await self.page.screenshot(type="png", full_page=False)
+                buf = io.BytesIO(shot_bytes)
+                buf.seek(0)
+                self.cached_board_screenshots[str(target_issue)] = buf
+            except Exception:
+                pass
+
+    # ------------------------------------------------------------------ #
+    #  Real Bet Placement
     # ------------------------------------------------------------------ #
 
     async def place_bet(self, game_id: str, choice: str, issue_number: str = "") -> dict:
         """
-        Places real bet on Big or Small (or number ball) on the live game board.
-        Returns dict with status and details.
+        Places real bet on Big or Small (or number ball) on the live game board
+        AND starts the real-time draw watcher to catch the 3-second popup!
         """
         async with self._lock:
             if not self.is_ready or not self.page:
@@ -427,7 +530,6 @@ class PlaywrightWinGoWorker:
                 return {"ok": False, "reason": "browser_not_ready"}
 
             try:
-                # Dismiss modals before clicking
                 await self.dismiss_announcements()
 
                 target_text = "Big" if choice.upper() == "BIG" else "Small"
@@ -442,7 +544,6 @@ class PlaywrightWinGoWorker:
                     await target_locator.click(force=True)
                     clicked = True
                 else:
-                    # Fallback: Click on lucky number ball (e.g. 7 for Big, 2 for Small)
                     ball_num = "7" if choice.upper() == "BIG" else "2"
                     num_ball = self.page.locator(f".Betting__C-numC-item{ball_num}, [class*='numC-item{ball_num}']").first
                     if await num_ball.is_visible(timeout=2500):
@@ -453,22 +554,18 @@ class PlaywrightWinGoWorker:
                     logger.warning(f"Could not click bet selector for {choice.upper()}.")
                     return {"ok": False, "reason": "selector_missing"}
 
-                await asyncio.sleep(0.6)
+                await asyncio.sleep(0.5)
 
                 # Confirm Bet Modal
                 confirm_btn = self.page.locator(BET_CONFIRM_SELECTOR).first
                 if await confirm_btn.is_visible(timeout=3000):
                     await confirm_btn.click()
-                    logger.info(f"✅ Real bet placed on {choice.upper()} for period {issue_number}!")
-                    await asyncio.sleep(0.5)
+                    logger.info(f"✅ Real in-game bet placed on {choice.upper()} for period {issue_number}!")
+                    await asyncio.sleep(0.4)
 
-                    self._last_bet_info = {
-                        "game_id": game_id,
-                        "choice": choice.upper(),
-                        "issue_number": issue_number,
-                        "timestamp": time.time(),
-                        "placed": True,
-                    }
+                    # START THE REAL-TIME DRAW WATCHER IMMEDIATELY!
+                    asyncio.create_task(self.watch_and_capture_win_popup(str(issue_number)))
+
                     return {"ok": True, "choice": choice.upper(), "issue": issue_number}
                 else:
                     logger.warning("Bet confirm button not found.")
@@ -478,70 +575,18 @@ class PlaywrightWinGoWorker:
                 logger.error(f"Error placing bet for {game_id}: {e}")
                 return {"ok": False, "reason": str(e)}
 
-    async def capture_real_win_popup(
-        self,
-        game_id: str,
-        issue_number: str,
-        choice: str,
-        timeout_seconds: float = 16.0
-    ) -> Optional[io.BytesIO]:
-        """
-        Actively monitors screen for the real native 'Congratulations' Winning Popup.
-        Takes full screenshot of the real browser page when popup is active.
-        """
-        async with self._lock:
-            if not self.is_ready or not self.page:
-                return None
-
-            try:
-                deadline = time.time() + timeout_seconds
-                popup_detected = False
-
-                logger.info(f"👀 Watching for real winning popup on screen (Timeout: {timeout_seconds}s)...")
-
-                while time.time() < deadline:
-                    try:
-                        is_win = await self.page.evaluate(WIN_POPUP_JS)
-                        if is_win:
-                            popup_detected = True
-                            break
-                    except Exception:
-                        pass
-                    await asyncio.sleep(0.08)
-
-                if popup_detected:
-                    logger.info("🎉 REAL WINNING POPUP DETECTED ON LIVE GAME! Capturing screenshot...")
-                    await asyncio.sleep(0.25)  # Let bonus amount animation settle
-                    screenshot_bytes = await self.page.screenshot(type="png", full_page=False)
-
-                    # Quick dismiss
-                    await self.dismiss_announcements()
-
-                    buf = io.BytesIO(screenshot_bytes)
-                    buf.seek(0)
-                    return buf
-                else:
-                    logger.info("ℹ️ Winning popup was not visible within timeout window.")
-                    return None
-
-            except Exception as e:
-                logger.error(f"Error during win popup capture: {e}")
-                return None
-
-    async def capture_board_screenshot(self, game_id: str) -> Optional[io.BytesIO]:
+    async def capture_board_screenshot(self, game_id: str = "wingo_1m") -> Optional[io.BytesIO]:
         """Captures real clean screenshot of current game board and history table"""
-        async with self._lock:
-            if not self.is_ready or not self.page:
-                return None
-            try:
-                await asyncio.sleep(0.5)
-                screenshot_bytes = await self.page.screenshot(type="png", full_page=False)
-                buf = io.BytesIO(screenshot_bytes)
-                buf.seek(0)
-                return buf
-            except Exception as e:
-                logger.error(f"Error taking board screenshot: {e}")
-                return None
+        if not self.page:
+            return None
+        try:
+            shot_bytes = await self.page.screenshot(type="png", full_page=False)
+            buf = io.BytesIO(shot_bytes)
+            buf.seek(0)
+            return buf
+        except Exception as e:
+            logger.error(f"Error taking board screenshot: {e}")
+            return None
 
     async def close(self):
         """Safely shuts down browser context and Playwright process"""

@@ -1,4 +1,5 @@
 import io
+import asyncio
 import logging
 from typing import Optional
 
@@ -10,9 +11,8 @@ class BetAutomationService:
     """
     Playwright Real Game Automation Service:
     - Real bet placement on live game board (WinGo).
-    - 100% Real browser screen capture of the native 'Congratulations' Winning Popup.
-    - Captures real game board & My History table if popup auto-closed.
-    - ZERO fake canvas/Pillow drawings.
+    - Synchronized countdown watcher catches the 3-second 'Congratulations' popup right at 00:00 draw.
+    - Zero delay, zero fake drawings.
     """
 
     def __init__(self):
@@ -43,44 +43,35 @@ class BetAutomationService:
         streak: int = 1
     ) -> Optional[io.BytesIO]:
         """
-        Captures 100% genuine live screenshot directly from the headless browser:
-        1. First tries to capture the real on-screen native 'Congratulations' Winning Popup.
-        2. If popup closed, captures the real game screen with the updated balance & history table.
-        3. Never generates or sends any fake canvas drawings.
+        Retrieves the 100% genuine in-game screenshot captured right at the draw time:
+        1. Checks real-time draw watcher cache (captured right at 00:00).
+        2. Delivers the instant winning popup screenshot.
+        3. Never sends fake drawings.
         """
-        if not self.worker.is_ready:
-            logger.info("ℹ️ Browser not yet initialized/ready; re-initializing...")
-            try:
-                await self.worker.initialize()
-            except Exception as e:
-                logger.warning(f"Re-init warning: {e}")
+        target_key = str(target_issue)
 
-        if not self.worker.is_ready:
-            logger.warning("⚠️ Real browser is not connected to the game. Skipping screenshot (no fake images will be sent).")
-            return None
+        # 1. Check if the real-time draw watcher already captured the winning popup
+        shot = self.worker.cached_win_screenshots.pop(target_key, None)
+        if shot:
+            logger.info(f"📸 Delivering instant live Win Popup screenshot for period {target_issue}!")
+            return shot
 
-        # 1. Real Playwright Winning Popup capture
-        try:
-            real_popup_shot = await self.worker.capture_real_win_popup(
-                game_id=game_id,
-                issue_number=target_issue,
-                choice=choice,
-                timeout_seconds=14.0
-            )
-            if real_popup_shot:
-                logger.info(f"📸 100% Real Playwright Winning Popup captured for period {target_issue}!")
-                return real_popup_shot
-        except Exception as e:
-            logger.warning(f"Winning popup capture warning: {e}")
+        # 2. Wait up to 3.5s in case draw watcher is just finishing its 00:00 capture
+        for _ in range(7):
+            await asyncio.sleep(0.5)
+            shot = self.worker.cached_win_screenshots.pop(target_key, None)
+            if shot:
+                logger.info(f"📸 Delivering live Win Popup screenshot for period {target_issue}!")
+                return shot
 
-        # 2. Real Playwright Game Board Capture (shows real wallet balance + real My History row)
-        try:
-            logger.info(f"📸 Capturing real live game board & history table for period {target_issue}...")
-            real_board_shot = await self.worker.capture_board_screenshot(game_id=game_id)
-            if real_board_shot:
-                return real_board_shot
-        except Exception as e:
-            logger.error(f"Board screenshot error: {e}")
+        # 3. Check cached board shot from the draw moment
+        board_shot = self.worker.cached_board_screenshots.pop(target_key, None)
+        if board_shot:
+            return board_shot
+
+        # 4. If nothing cached and browser is live, capture current board
+        if self.worker.is_ready:
+            return await self.worker.capture_board_screenshot(game_id=game_id)
 
         return None
 
