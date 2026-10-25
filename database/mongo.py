@@ -19,10 +19,16 @@ class DatabaseManager:
             "active_session": None,
             "base_bet_amount": getattr(config, "DEMO_BET_AMOUNT", 10),
             "martingale_multiplier": 2,
+            "max_loss_display_level": 3,
+            "auto_clean_loss": True,
             "tpl_prediction": None,
             "tpl_win": None,
             "tpl_loss": None,
+            "tpl_pre_session": None,
+            "tpl_session_start": None,
+            "tpl_session_summary": None,
         }
+        self._channel_loss_messages = {}
         self.connect()
 
     def connect(self):
@@ -68,9 +74,14 @@ class DatabaseManager:
                     "active_session": None,
                     "base_bet_amount": getattr(config, "DEMO_BET_AMOUNT", 10),
                     "martingale_multiplier": 2,
+                    "max_loss_display_level": 3,
+                    "auto_clean_loss": True,
                     "tpl_prediction": None,
                     "tpl_win": None,
                     "tpl_loss": None,
+                    "tpl_pre_session": None,
+                    "tpl_session_start": None,
+                    "tpl_session_summary": None,
                     "updated_at": datetime.utcnow()
                 }
                 self.db.settings.insert_one(initial)
@@ -82,6 +93,10 @@ class DatabaseManager:
                     doc["base_bet_amount"] = 10
                 if "martingale_multiplier" not in doc:
                     doc["martingale_multiplier"] = 2
+                if "max_loss_display_level" not in doc:
+                    doc["max_loss_display_level"] = 3
+                if "auto_clean_loss" not in doc:
+                    doc["auto_clean_loss"] = True
                 self._memory_settings = doc
         except Exception as e:
             logger.error(f"Error initializing system settings: {e}")
@@ -148,6 +163,33 @@ class DatabaseManager:
         key = f"tpl_{tpl_type}"
         self.update_system_settings({key: content.strip() if content else None})
 
+    def get_max_loss_display_level(self) -> int:
+        cfg = self.get_system_settings()
+        return int(cfg.get("max_loss_display_level", 3))
+
+    def set_max_loss_display_level(self, lvl: int) -> int:
+        lvl = max(1, min(10, int(lvl)))
+        self.update_system_settings({"max_loss_display_level": lvl})
+        return lvl
+
+    def get_auto_clean_loss(self) -> bool:
+        cfg = self.get_system_settings()
+        return bool(cfg.get("auto_clean_loss", True))
+
+    def set_auto_clean_loss(self, enabled: bool) -> bool:
+        self.update_system_settings({"auto_clean_loss": bool(enabled)})
+        return bool(enabled)
+
+    def record_channel_loss_message(self, channel_id: str, message_id: int):
+        """Stores sent loss message_id to allow auto-deletion on next WIN"""
+        channel_id = str(channel_id).strip()
+        self._channel_loss_messages.setdefault(channel_id, []).append(int(message_id))
+
+    def pop_channel_loss_messages(self, channel_id: str) -> list:
+        """Retrieves and clears all pending loss message_ids for a channel"""
+        channel_id = str(channel_id).strip()
+        return self._channel_loss_messages.pop(channel_id, [])
+
     def get_sessions(self) -> list:
         cfg = self.get_system_settings()
         return cfg.get("sessions", getattr(config, "DEFAULT_SESSIONS", []))
@@ -155,6 +197,45 @@ class DatabaseManager:
     def update_sessions(self, sessions: list) -> list:
         self.update_system_settings({"sessions": sessions})
         return sessions
+
+    def add_session(self, name: str, start: str, end: str, max_rounds: int = 15) -> dict:
+        sessions = self.get_sessions()
+        next_id = max([s.get("id", 0) for s in sessions], default=0) + 1
+        new_sess = {
+            "id": next_id,
+            "name": name.strip(),
+            "start": start.strip(),
+            "end": end.strip(),
+            "max_rounds": int(max_rounds)
+        }
+        sessions.append(new_sess)
+        self.update_sessions(sessions)
+        return new_sess
+
+    def delete_session(self, session_id: int) -> bool:
+        sessions = self.get_sessions()
+        filtered = [s for s in sessions if s.get("id") != session_id]
+        if len(filtered) != len(sessions):
+            self.update_sessions(filtered)
+            return True
+        return False
+
+    def update_session(self, session_id: int, updates: dict) -> bool:
+        sessions = self.get_sessions()
+        updated = False
+        for s in sessions:
+            if s.get("id") == session_id:
+                s.update(updates)
+                updated = True
+                break
+        if updated:
+            self.update_sessions(sessions)
+        return updated
+
+    def reset_sessions_to_default(self) -> list:
+        default_s = getattr(config, "DEFAULT_SESSIONS", [])
+        self.update_sessions(default_s)
+        return default_s
 
     # ================= CHANNEL MANAGEMENT =================
 
@@ -171,6 +252,7 @@ class DatabaseManager:
             "register_link": register_link or (existing.get("register_link") if existing else config.DEFAULT_REGISTER_LINK),
             "promo_text": promo_text or (existing.get("promo_text") if existing else config.DEFAULT_PROMO_TEXT),
             "buttons": existing_buttons,
+            "loss_message_ids": existing.get("loss_message_ids", []) if existing else [],
             "current_level": existing.get("current_level", 1) if existing else 1,
             "max_level": 5,
             "stats": existing.get("stats", {

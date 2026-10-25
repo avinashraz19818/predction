@@ -31,6 +31,43 @@ DEFAULT_LOSS_TEMPLATE = """{warning} <b>𝗟𝗘𝗩𝗘𝗟 {curr_level} 𝗠�
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 {target} <i>Next prediction incoming immediately...</i>"""
 
+DEFAULT_PRE_SESSION_TEMPLATE = """{warning} <b>𝗩𝗜𝗣 𝗣𝗥𝗘𝗗𝗜𝗖𝗧𝗜𝗢𝗡 𝗦𝗘𝗦𝗦𝗜𝗢𝗡 𝗔𝗟𝗘𝗥𝗧</b> {warning}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{clock} <b>𝗦𝗲𝘀𝘀𝗶𝗼𝗻:</b> <b>{session_name}</b>
+{target} <b>𝗦𝘁𝗮𝗿𝘁 𝗧𝗶𝗺𝗲:</b> <code>{start_time} IST</code> <b>(In 15 Minutes!)</b>
+🎮 <b>𝗚𝗮𝗺𝗲 𝗠𝗼𝗱𝗲:</b> <code>{game_name}</code>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🛡️ <b>𝗙𝘂𝗻𝗱 𝗠𝗮𝗻𝗮𝗴𝗲𝗺𝗲𝗻𝘁 𝗥𝘂𝗹𝗲:</b>
+{fire} <i>{promo}</i>
+{money} <i>Recharge your wallet beforehand to avoid missing profitable rounds!</i>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{lightning} <i>Live signals will begin automatically right on time. Get ready!</i>"""
+
+DEFAULT_SESSION_START_TEMPLATE = """🟢 <b>{session_name} 𝗜𝗦 𝗡𝗢𝗪 𝗟𝗜𝗩𝗘!</b> {crown}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{clock} <b>𝗦𝗲𝘀𝘀𝗶𝗼𝗻 𝗧𝗶𝗺𝗶𝗻𝗴:</b> <code>Until {end_time} IST</code>
+🎮 <b>𝗚𝗮𝗺𝗲:</b> <code>{game_name}</code>
+{target} <b>𝗧𝗮𝗿𝗴𝗲𝘁 𝗥𝗼𝘂𝗻𝗱𝘀:</b> <code>{max_rounds} High-Accuracy Signals</code>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{fire} <b>𝗜𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀:</b>
+• Play every signal without skipping.
+• If Level 1 misses, strictly use Martingale on Level 2!
+• Once WIN occurs, immediately reset back to Base Level 1.
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{rocket} <i>First prediction signal starting in 10 seconds! Good luck!</i>"""
+
+DEFAULT_SESSION_SUMMARY_TEMPLATE = """{trophy} <b>{session_name} 𝗖𝗢𝗠𝗣𝗟𝗘𝗧𝗜𝗢𝗡 𝗥𝗘𝗣𝗢𝗥𝗧</b> {party}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{chart} <b>𝗧𝗼𝘁𝗮𝗹 𝗥𝗼𝘂𝗻𝗱𝘀:</b> <code>{total_rounds}</code>
+{check} <b>𝗪𝗶𝗻𝘀:</b> <code>{wins}</code> | {cross} <b>𝗟𝗼𝘀𝘀𝗲𝘀:</b> <code>{losses}</code>
+🎯 <b>𝗔𝗰𝗰𝘂𝗿𝗮𝗰𝘆 𝗥𝗮𝘁𝗲:</b> <b>{win_rate}%</b>
+{fire} <b>𝗠𝗮𝘅 𝗪𝗶𝗻 𝗦𝘁𝗿𝗲𝗮𝗸:</b> <b>{max_streak}x Consecutive</b>
+🛡️ <b>𝗠𝗮𝘅 𝗟𝗲𝘃𝗲𝗟 𝗨𝘀𝗲𝗱:</b> <b>Level {max_level_used}</b>
+{money} <b>𝗘𝘀𝘁𝗶𝗺𝗮𝘁𝗲𝗱 𝗣𝗿𝗼𝗳𝗶𝘁:</b> <b>+₹{profit}</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{clock} <b>𝗡𝗲𝘅𝘁 𝗦𝗲𝘀𝘀𝗶𝗼𝗻:</b> <code>{next_session}</code>
+🌟 <i>Congratulations to all VIP members who played this session!</i>"""
+
 PREMIUM_EMOJIS = {
     "fire": '<tg-emoji emoji-id="5420315771991497307">🔥</tg-emoji>',
     "crown": '<tg-emoji emoji-id="6266995104687330978">👑</tg-emoji>',
@@ -252,7 +289,8 @@ def render_pre_session_alert_card(
     session_name: str,
     start_time: str,
     game_name: str = "WinGo 1 Minute",
-    promo_text: str = ""
+    promo_text: str = "",
+    custom_template: Optional[str] = None
 ) -> str:
     warning = em("warning", "🚨")
     clock = em("clock", "⏰")
@@ -262,6 +300,24 @@ def render_pre_session_alert_card(
     lightning = em("lightning", "⚡")
 
     promo_clean = promo_text or "Maintain 5 to 6 Levels Balance for 100% Guaranteed Profit!"
+
+    if custom_template and custom_template.strip():
+        txt = custom_template
+        replacements = {
+            "{session_name}": session_name,
+            "{start_time}": start_time,
+            "{game_name}": game_name,
+            "{promo}": promo_clean,
+            "{warning}": warning,
+            "{clock}": clock,
+            "{target}": target,
+            "{money}": money,
+            "{fire}": fire,
+            "{lightning}": lightning
+        }
+        for k, v in replacements.items():
+            txt = txt.replace(k, v)
+        return txt
 
     msg = f"""{warning} <b>𝗩𝗜𝗣 𝗣𝗥𝗘𝗗𝗜𝗖𝗧𝗜𝗢𝗡 𝗦𝗘𝗦𝗦𝗜𝗢𝗡 𝗔𝗟𝗘𝗥𝗧</b> {warning}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -280,13 +336,31 @@ def render_session_start_card(
     session_name: str,
     end_time: str,
     max_rounds: int = 15,
-    game_name: str = "WinGo 1 Minute"
+    game_name: str = "WinGo 1 Minute",
+    custom_template: Optional[str] = None
 ) -> str:
     crown = em("crown", "👑")
     rocket = em("rocket", "🚀")
     clock = em("clock", "⏰")
     target = em("target", "🎯")
     fire = em("fire", "🔥")
+
+    if custom_template and custom_template.strip():
+        txt = custom_template
+        replacements = {
+            "{session_name}": session_name,
+            "{end_time}": end_time,
+            "{max_rounds}": str(max_rounds),
+            "{game_name}": game_name,
+            "{crown}": crown,
+            "{rocket}": rocket,
+            "{clock}": clock,
+            "{target}": target,
+            "{fire}": fire
+        }
+        for k, v in replacements.items():
+            txt = txt.replace(k, v)
+        return txt
 
     msg = f"""🟢 <b>{session_name.upper()} 𝗜𝗦 𝗡𝗢𝗪 𝗟𝗜𝗩𝗘!</b> {crown}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -310,7 +384,8 @@ def render_session_summary_card(
     max_streak: int,
     max_level_used: int,
     profit_inr: float,
-    next_session_text: str = "Tomorrow at 11:00 AM"
+    next_session_text: str = "Tomorrow at 11:00 AM",
+    custom_template: Optional[str] = None
 ) -> str:
     trophy = em("trophy", "🏆")
     party = em("party", "🎉")
@@ -322,6 +397,31 @@ def render_session_summary_card(
     clock = em("clock", "⏰")
 
     win_rate = (wins / total_rounds * 100) if total_rounds > 0 else 0.0
+
+    if custom_template and custom_template.strip():
+        txt = custom_template
+        replacements = {
+            "{session_name}": session_name,
+            "{total_rounds}": str(total_rounds),
+            "{wins}": str(wins),
+            "{losses}": str(losses),
+            "{win_rate}": f"{win_rate:.1f}",
+            "{max_streak}": str(max_streak),
+            "{max_level_used}": str(max_level_used),
+            "{profit}": f"{profit_inr:,.2f}",
+            "{next_session}": next_session_text,
+            "{trophy}": trophy,
+            "{party}": party,
+            "{chart}": chart,
+            "{check}": check,
+            "{cross}": cross,
+            "{fire}": fire,
+            "{money}": money,
+            "{clock}": clock
+        }
+        for k, v in replacements.items():
+            txt = txt.replace(k, v)
+        return txt
 
     msg = f"""{trophy} <b>{session_name.upper()} 𝗖𝗢𝗠𝗣𝗟𝗘𝗧𝗜𝗢𝗡 𝗥𝗘𝗣𝗢𝗥𝗧</b> {party}
 ━━━━━━━━━━━━━━━━━━━━━━━━━

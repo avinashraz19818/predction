@@ -82,39 +82,39 @@ class WinGoScheduler:
         reply_markup = get_channel_post_keyboard(channel, include_custom_emoji=True, include_style=True)
 
         try:
-            await self.bot.send_message(
+            msg = await self.bot.send_message(
                 chat_id=channel_id,
                 text=text,
                 parse_mode=ParseMode.HTML,
                 reply_markup=reply_markup,
                 disable_web_page_preview=True
             )
-            return True
+            return msg
         except TelegramError as te:
             err_str = str(te).lower()
             if "custom_emoji" in err_str or "button" in err_str or "style" in err_str:
                 try:
                     fallback_markup = get_channel_post_keyboard(channel, include_custom_emoji=False, include_style=True)
-                    await self.bot.send_message(
+                    msg = await self.bot.send_message(
                         chat_id=channel_id,
                         text=text,
                         parse_mode=ParseMode.HTML,
                         reply_markup=fallback_markup,
                         disable_web_page_preview=True
                     )
-                    return True
+                    return msg
                 except TelegramError:
                     fallback_markup2 = get_channel_post_keyboard(channel, include_custom_emoji=False, include_style=False)
-                    await self.bot.send_message(
+                    msg = await self.bot.send_message(
                         chat_id=channel_id,
                         text=strip_tg_emoji_tags(text),
                         parse_mode=ParseMode.HTML,
                         reply_markup=fallback_markup2,
                         disable_web_page_preview=True
                     )
-                    return True
+                    return msg
             logger.error(f"❌ Failed to send message to {channel_id}: {te}")
-            return False
+            return None
 
     async def _safe_send_photo(self, channel: dict, photo_bytes: bytes, caption: str):
         """Sends photo with custom colored buttons & premium emojis, with fallback"""
@@ -122,39 +122,39 @@ class WinGoScheduler:
         reply_markup = get_channel_post_keyboard(channel, include_custom_emoji=True, include_style=True)
 
         try:
-            await self.bot.send_photo(
+            msg = await self.bot.send_photo(
                 chat_id=channel_id,
                 photo=io.BytesIO(photo_bytes),
                 caption=caption,
                 parse_mode=ParseMode.HTML,
                 reply_markup=reply_markup
             )
-            return True
+            return msg
         except TelegramError as te:
             err_str = str(te).lower()
             if "custom_emoji" in err_str or "button" in err_str or "style" in err_str:
                 try:
                     fallback_markup = get_channel_post_keyboard(channel, include_custom_emoji=False, include_style=True)
-                    await self.bot.send_photo(
+                    msg = await self.bot.send_photo(
                         chat_id=channel_id,
                         photo=io.BytesIO(photo_bytes),
                         caption=caption,
                         parse_mode=ParseMode.HTML,
                         reply_markup=fallback_markup
                     )
-                    return True
+                    return msg
                 except TelegramError:
                     fallback_markup2 = get_channel_post_keyboard(channel, include_custom_emoji=False, include_style=False)
-                    await self.bot.send_photo(
+                    msg = await self.bot.send_photo(
                         chat_id=channel_id,
                         photo=io.BytesIO(photo_bytes),
                         caption=strip_tg_emoji_tags(caption),
                         parse_mode=ParseMode.HTML,
                         reply_markup=fallback_markup2
                     )
-                    return True
+                    return msg
             logger.error(f"❌ Failed to send photo to {channel_id}: {te}")
-            return False
+            return None
 
     # ================= SESSION SCHEDULER CONTROLLER =================
 
@@ -265,13 +265,15 @@ class WinGoScheduler:
             return
 
         logger.info(f"🚨 Broadcasting Pre-Session Alert for {session_name} starting at {start_time} IST...")
+        custom_tpl = db_manager.get_message_template("pre_session")
         for ch in active_channels:
             promo = ch.get("promo_text", config.DEFAULT_PROMO_TEXT)
             text = render_pre_session_alert_card(
                 session_name=session_name,
                 start_time=start_time,
                 game_name="WinGo 1 Minute VIP",
-                promo_text=promo
+                promo_text=promo,
+                custom_template=custom_tpl
             )
             await self._safe_send_message(ch, text)
 
@@ -283,12 +285,14 @@ class WinGoScheduler:
             return
 
         logger.info(f"🟢 Broadcasting VIP Session Live Alert: {session_name}!")
+        custom_tpl = db_manager.get_message_template("session_start")
         for ch in active_channels:
             text = render_session_start_card(
                 session_name=session_name,
                 end_time=end_time,
                 max_rounds=max_rounds,
-                game_name="WinGo 1 Minute"
+                game_name="WinGo 1 Minute",
+                custom_template=custom_tpl
             )
             await self._safe_send_message(ch, text)
 
@@ -316,6 +320,7 @@ class WinGoScheduler:
 
         logger.info(f"🏆 Concluding {session_data['name']}: {wins}/{total_rounds} Wins | Profit: ₹{profit}")
 
+        custom_tpl = db_manager.get_message_template("session_summary")
         text = render_session_summary_card(
             session_name=session_data["name"],
             total_rounds=total_rounds,
@@ -324,7 +329,8 @@ class WinGoScheduler:
             max_streak=max_streak,
             max_level_used=max_lvl,
             profit_inr=profit,
-            next_session_text=next_text
+            next_session_text=next_text,
+            custom_template=custom_tpl
         )
 
         for ch in active_channels:
@@ -495,6 +501,8 @@ class WinGoScheduler:
         game_name = game_cfg["name"]
         custom_win_tpl = db_manager.get_message_template("win")
         custom_loss_tpl = db_manager.get_message_template("loss")
+        max_loss_cards = db_manager.get_max_loss_display_level()
+        auto_clean_loss = db_manager.get_auto_clean_loss()
 
         for ch in channels:
             channel_id = ch["channel_id"]
@@ -510,6 +518,15 @@ class WinGoScheduler:
 
             try:
                 if is_win:
+                    # 1. Auto-Clean previous loss notifications if enabled
+                    if auto_clean_loss:
+                        loss_msg_ids = db_manager.pop_channel_loss_messages(channel_id)
+                        for m_id in loss_msg_ids:
+                            try:
+                                await self.bot.delete_message(chat_id=channel_id, message_id=m_id)
+                            except Exception:
+                                pass
+
                     win_text = render_win_card(
                         game_name=game_name,
                         issue_number=issue_number,
@@ -537,16 +554,25 @@ class WinGoScheduler:
                     else:
                         await self._safe_send_message(ch, win_text)
                 else:
-                    loss_text = render_loss_card(
-                        game_name=game_name,
-                        issue_number=issue_number,
-                        actual_choice=actual_choice,
-                        actual_number=actual_number,
-                        curr_level=curr_level,
-                        next_level=next_level,
-                        custom_template=custom_loss_tpl
-                    )
-                    await self._safe_send_message(ch, loss_text)
+                    # Anti-Loss Clutter: Only broadcast loss card up to configured max level (e.g. 2 or 3)
+                    if curr_level <= max_loss_cards:
+                        loss_text = render_loss_card(
+                            game_name=game_name,
+                            issue_number=issue_number,
+                            actual_choice=actual_choice,
+                            actual_number=actual_number,
+                            curr_level=curr_level,
+                            next_level=next_level,
+                            custom_template=custom_loss_tpl
+                        )
+                        sent_msg = await self._safe_send_message(ch, loss_text)
+                        if sent_msg and hasattr(sent_msg, "message_id"):
+                            db_manager.record_channel_loss_message(channel_id, sent_msg.message_id)
+                    else:
+                        logger.info(
+                            f"🛡️ [Anti-Loss Clutter] Suppressed public loss alert for {channel_id} at Level {curr_level} "
+                            f"(Max allowed: {max_loss_cards}). Keeping channel clean!"
+                        )
 
             except Exception as e:
                 logger.error(f"❌ Error broadcasting result to {channel_id}: {e}")

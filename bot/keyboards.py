@@ -47,23 +47,30 @@ def get_admin_main_keyboard(
     operating_mode: str = "24_7",
     browser_ready: bool = False,
     base_bet: int = 10,
-    martingale_mult: int = 2
+    martingale_mult: int = 2,
+    max_loss_cards: int = 3,
+    auto_clean_loss: bool = True
 ) -> InlineKeyboardMarkup:
-    """Admin Dashboard Main Menu with Mode, Bet Amount, Multiplier & Templates"""
+    """Admin Dashboard Main Menu with Mode, Bet Amount, Loss Protection, Sessions & Templates"""
     mode_text = "⚡ Mode: 24/7" if operating_mode == "24_7" else "🕒 Mode: Sessions"
     browser_badge = "🟢 Browser Live" if browser_ready else "⚪ Browser Idle"
+    clean_badge = "🧹 Clean Loss: ON" if auto_clean_loss else "🧹 Clean Loss: OFF"
 
     keyboard = [
         [
             InlineKeyboardButton(mode_text, callback_data="admin_toggle_mode"),
-            InlineKeyboardButton("🕒 Sessions", callback_data="admin_sessions")
+            InlineKeyboardButton("🕒 VIP Sessions", callback_data="admin_sessions")
         ],
         [
             InlineKeyboardButton(f"💰 Base Bet: ₹{base_bet}", callback_data="admin_set_bet"),
             InlineKeyboardButton(f"🛡️ Martingale: {martingale_mult}X", callback_data="admin_toggle_martingale")
         ],
         [
-            InlineKeyboardButton("📝 Edit Message Templates", callback_data="admin_templates"),
+            InlineKeyboardButton(f"🚫 Max Loss Alerts: {max_loss_cards}", callback_data="admin_toggle_max_loss"),
+            InlineKeyboardButton(clean_badge, callback_data="admin_toggle_clean_loss")
+        ],
+        [
+            InlineKeyboardButton("📝 Edit ALL Message Templates", callback_data="admin_templates"),
             InlineKeyboardButton(f"🎮 {browser_badge}", callback_data="admin_browser_status")
         ],
         [
@@ -103,19 +110,22 @@ def get_bet_amount_keyboard(current_amount: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 def get_templates_menu_keyboard() -> InlineKeyboardMarkup:
-    """Menu to customize message templates"""
+    """Menu to customize ALL message templates"""
     keyboard = [
         [
-            InlineKeyboardButton("🎯 Edit Prediction Card", callback_data="edit_tpl:prediction")
+            InlineKeyboardButton("🎯 1. Prediction Card", callback_data="edit_tpl:prediction"),
+            InlineKeyboardButton("🏆 2. Win Card", callback_data="edit_tpl:win")
         ],
         [
-            InlineKeyboardButton("🏆 Edit Win Card", callback_data="edit_tpl:win")
+            InlineKeyboardButton("⚠️ 3. Loss Card", callback_data="edit_tpl:loss"),
+            InlineKeyboardButton("🚨 4. Pre-Session (15m)", callback_data="edit_tpl:pre_session")
         ],
         [
-            InlineKeyboardButton("⚠️ Edit Loss Card", callback_data="edit_tpl:loss")
+            InlineKeyboardButton("🟢 5. Session Live Start", callback_data="edit_tpl:session_start"),
+            InlineKeyboardButton("📊 6. Session Summary", callback_data="edit_tpl:session_summary")
         ],
         [
-            InlineKeyboardButton("🔄 Reset All to Defaults", callback_data="reset_tpl:all")
+            InlineKeyboardButton("🔄 Reset All Templates to Default", callback_data="reset_tpl:all")
         ],
         [
             InlineKeyboardButton("⬅️ Back to Admin", callback_data="admin_main")
@@ -124,24 +134,48 @@ def get_templates_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 def get_sessions_manage_keyboard(sessions: list) -> InlineKeyboardMarkup:
-    """Menu to view and toggle scheduled VIP sessions"""
+    """Menu to view, edit timings, and add scheduled VIP sessions"""
     keyboard = []
     for s in sessions:
         s_id = s.get("id")
         s_name = s.get("name", f"Session {s_id}")
         start_t = s.get("start")
         end_t = s.get("end")
+        rnds = s.get("max_rounds", 15)
         keyboard.append([
-            InlineKeyboardButton(f"🕒 {s_name} [{start_t} - {end_t}]", callback_data=f"view_sess:{s_id}")
+            InlineKeyboardButton(f"🕒 {s_name} [{start_t} - {end_t}] ({rnds} R)", callback_data=f"manage_sess:{s_id}")
         ])
 
+    keyboard.append([
+        InlineKeyboardButton("➕ Add New VIP Session", callback_data="admin_add_session"),
+        InlineKeyboardButton("🔄 Reset Default Sessions", callback_data="admin_reset_sessions")
+    ])
     keyboard.append([
         InlineKeyboardButton("⚙️ Switch to 24/7 Mode", callback_data="set_mode:24_7"),
         InlineKeyboardButton("⚙️ Switch to Session Mode", callback_data="set_mode:scheduled")
     ])
     keyboard.append([
-        InlineKeyboardButton("⬅️ Back to Main Admin", callback_data="admin_main")
+        InlineKeyboardButton("⬅️ Back to Admin", callback_data="admin_main")
     ])
+    return InlineKeyboardMarkup(keyboard)
+
+def get_single_session_keyboard(session_id: int) -> InlineKeyboardMarkup:
+    """Controls for a single session"""
+    keyboard = [
+        [
+            InlineKeyboardButton("✏️ Edit Timing (Start - End)", callback_data=f"edit_sess_time:{session_id}")
+        ],
+        [
+            InlineKeyboardButton("🏷️ Edit Session Name", callback_data=f"edit_sess_name:{session_id}"),
+            InlineKeyboardButton("🎯 Edit Max Rounds", callback_data=f"edit_sess_rnds:{session_id}")
+        ],
+        [
+            InlineKeyboardButton("🗑️ Delete This Session", callback_data=f"del_sess:{session_id}")
+        ],
+        [
+            InlineKeyboardButton("⬅️ Back to Sessions", callback_data="admin_sessions")
+        ]
+    ]
     return InlineKeyboardMarkup(keyboard)
 
 def get_browser_status_keyboard() -> InlineKeyboardMarkup:

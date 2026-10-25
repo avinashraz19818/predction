@@ -1,4 +1,5 @@
 import io
+import re
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -14,6 +15,7 @@ from bot.keyboards import (
     get_channel_buttons_keyboard,
     get_button_style_select_keyboard,
     get_sessions_manage_keyboard,
+    get_single_session_keyboard,
     get_browser_status_keyboard,
     get_bet_amount_keyboard,
     get_templates_menu_keyboard
@@ -21,7 +23,10 @@ from bot.keyboards import (
 from bot.templates import (
     DEFAULT_PREDICTION_TEMPLATE,
     DEFAULT_WIN_TEMPLATE,
-    DEFAULT_LOSS_TEMPLATE
+    DEFAULT_LOSS_TEMPLATE,
+    DEFAULT_PRE_SESSION_TEMPLATE,
+    DEFAULT_SESSION_START_TEMPLATE,
+    DEFAULT_SESSION_SUMMARY_TEMPLATE
 )
 
 logger = logging.getLogger(__name__)
@@ -42,15 +47,18 @@ def _get_admin_panel_text(user_first_name: str) -> str:
     browser_status = "🟢 Logged In & Ready (Playwright)" if browser_ready else "⚪ Idle / Connecting..."
     base_bet = db_manager.get_base_bet_amount()
     martingale_mult = db_manager.get_martingale_multiplier()
+    max_loss = db_manager.get_max_loss_display_level()
+    clean_loss = "ENABLED" if db_manager.get_auto_clean_loss() else "DISABLED"
 
     return f"""👑 <b>𝗪𝗜𝗡𝗚𝗢 𝗔𝗜 𝗣𝗥𝗘𝗗𝗜𝗖𝗧𝗜𝗢𝗡 𝗔𝗗𝗠𝗜𝗡 𝗣𝗔𝗡𝗘𝗟</b> 👑
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 👋 Welcome, <b>{user_first_name}</b>!
 ⚡ <b>Operating Mode:</b> <code>{mode_str}</code>
 💰 <b>Base Bet:</b> <code>₹{base_bet}</code> (Martingale: <b>{martingale_mult}X</b>)
+🛡️ <b>Max Public Loss Cards:</b> <b>Level {max_loss}</b> (Anti-Loss Protection)
+🧹 <b>Auto-Delete Loss on Win:</b> <code>{clean_loss}</code>
 🎮 <b>Automation Status:</b> <code>{browser_status}</code>
 🤖 <b>Engine:</b> WinGo 30s, 1M, 3M, 5M (Multi-Game)
-🛡️ <b>Strategy:</b> Dynamic Level Multiplier
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 Select an option from the menu below:"""
 
@@ -60,7 +68,9 @@ def _get_main_keyboard():
         operating_mode=cfg.get("mode", "24_7"),
         browser_ready=bet_automation.is_logged_in,
         base_bet=db_manager.get_base_bet_amount(),
-        martingale_mult=db_manager.get_martingale_multiplier()
+        martingale_mult=db_manager.get_martingale_multiplier(),
+        max_loss_cards=db_manager.get_max_loss_display_level(),
+        auto_clean_loss=db_manager.get_auto_clean_loss()
     )
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -199,25 +209,42 @@ Please send an integer amount in INR (e.g. <code>10</code>, <code>25</code>, <co
         text = _get_admin_panel_text(user.first_name)
         await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=_get_main_keyboard())
 
-    # Message Templates Menu
+    # Anti-Loss Clutter: Toggle Max Loss Alerts (2 -> 3 -> 4)
+    elif data == "admin_toggle_max_loss":
+        curr = db_manager.get_max_loss_display_level()
+        new_val = 2 if curr >= 4 else (curr + 1)
+        db_manager.set_max_loss_display_level(new_val)
+        await query.answer(f"Max Loss Alerts set to Level {new_val}!", show_alert=True)
+        text = _get_admin_panel_text(user.first_name)
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=_get_main_keyboard())
+
+    # Anti-Loss Clutter: Toggle Auto-Clean Loss on Win
+    elif data == "admin_toggle_clean_loss":
+        curr = db_manager.get_auto_clean_loss()
+        new_val = not curr
+        db_manager.set_auto_clean_loss(new_val)
+        status_str = "ENABLED (Auto-deletes earlier losses on Win)" if new_val else "DISABLED"
+        await query.answer(f"Auto-Clean Loss: {status_str}!", show_alert=True)
+        text = _get_admin_panel_text(user.first_name)
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=_get_main_keyboard())
+
+    # Message Templates Menu (All 6 Templates)
     elif data == "admin_templates":
-        text = """📝 <b>𝗖𝗨𝗦𝗧𝗢𝗠𝗜𝗭𝗘 𝗠𝗘𝗦𝗦𝗔𝗚𝗘 𝗧𝗘𝗠𝗣𝗟𝗔𝗧𝗘𝗦</b>
+        text = """📝 <b>𝗖𝗨𝗦𝗧𝗢𝗠𝗜𝗭𝗘 𝗔𝗟𝗟 𝗠𝗘𝗦𝗦𝗔𝗚𝗘 𝗧𝗘𝗠𝗣𝗟𝗔𝗧𝗘𝗦</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-You can fully customize how Prediction, Win, and Loss messages look in your channels!
+You can fully customize how every single message appears in your channels:
 
-<b>Available Placeholders:</b>
-• <code>{game_name}</code> - WinGo duration name
-• <code>{issue}</code> - Round issue / period number
-• <code>{prediction}</code> - Choice badge (BIG 5-9 or SMALL 0-4)
-• <code>{level}</code> - Current Martingale Level
-• <code>{confidence}</code> - AI Confidence %
-• <code>{pattern}</code> - Detected Trend/Pattern
-• <code>{streak}</code> - Consecutive win streak
-• <code>{result}</code> - Actual winning choice (BIG / SMALL)
-• <code>{number}</code> - Actual winning number (0-9)
-• <code>{promo}</code> - Channel promo/invite text
+<b>1. Signals & Results:</b>
+• <b>Prediction Card:</b> Period, Choice, Confidence, Safe Level
+• <b>Win Card:</b> Winning celebration, streak, level passed
+• <b>Loss Card:</b> Missed level, next recovery step
 
-Choose which message template to edit:"""
+<b>2. VIP Session Cards:</b>
+• <b>Pre-Session Alert:</b> 15-minute advance notice & fund rule
+• <b>Session Live Start:</b> Kickoff announcement & target rounds
+• <b>Session Summary:</b> Win rate, accuracy, and total profit
+
+Select a message template below to preview and edit:"""
         await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=get_templates_menu_keyboard())
 
     elif data.startswith("edit_tpl:"):
@@ -228,8 +255,16 @@ Choose which message template to edit:"""
                 current_tpl = DEFAULT_PREDICTION_TEMPLATE
             elif tpl_type == "win":
                 current_tpl = DEFAULT_WIN_TEMPLATE
-            else:
+            elif tpl_type == "loss":
                 current_tpl = DEFAULT_LOSS_TEMPLATE
+            elif tpl_type == "pre_session":
+                current_tpl = DEFAULT_PRE_SESSION_TEMPLATE
+            elif tpl_type == "session_start":
+                current_tpl = DEFAULT_SESSION_START_TEMPLATE
+            elif tpl_type == "session_summary":
+                current_tpl = DEFAULT_SESSION_SUMMARY_TEMPLATE
+            else:
+                current_tpl = "Default template"
 
         admin_states[user.id] = {"state": f"waiting_tpl_{tpl_type}"}
         prompt = f"""✏️ <b>Edit {tpl_type.upper()} Template</b>
@@ -243,14 +278,13 @@ Send your new template message text below. (HTML tags & placeholders supported).
         await query.edit_message_text(prompt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "reset_tpl:all":
-        db_manager.set_message_template("prediction", None)
-        db_manager.set_message_template("win", None)
-        db_manager.set_message_template("loss", None)
-        await query.answer("All message templates reset to default!", show_alert=True)
+        for t in ["prediction", "win", "loss", "pre_session", "session_start", "session_summary"]:
+            db_manager.set_message_template(t, None)
+        await query.answer("All 6 message templates reset to default!", show_alert=True)
         text = _get_admin_panel_text(user.first_name)
         await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=_get_main_keyboard())
 
-    # 3. View Scheduled Sessions
+    # 3. View & Manage Scheduled Sessions
     elif data == "admin_sessions":
         sessions = db_manager.get_sessions()
         curr_mode = cfg.get("mode", "24_7")
@@ -263,13 +297,100 @@ Send your new template message text below. (HTML tags & placeholders supported).
             f"🔔 <b>Pre-Session Alert:</b> <code>15 Minutes Before Start</code>",
             "━━━━━━━━━━━━━━━━━━━━━━━━━"
         ]
+        if not sessions:
+            lines.append("<i>No sessions configured! Click below to add or reset.</i>")
         for s in sessions:
             lines.append(f"• <b>{s.get('name', 'Session')}:</b> <code>{s.get('start')} – {s.get('end')} IST</code> (Target: {s.get('max_rounds', 15)} rounds)")
         lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
-        lines.append("<i>Pre-Session alerts, Live Kickoff, and Session Summary cards are sent automatically in Scheduled Mode!</i>")
+        lines.append("<i>Click any session below to edit its timing, name, or rounds:</i>")
 
         text = "\n".join(lines)
         await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=get_sessions_manage_keyboard(sessions))
+
+    elif data.startswith("manage_sess:"):
+        s_id = int(data.split(":")[1])
+        sessions = db_manager.get_sessions()
+        matched = next((s for s in sessions if s.get("id") == s_id), None)
+        if not matched:
+            await query.answer("Session not found!", show_alert=True)
+            text = _get_admin_panel_text(user.first_name)
+            await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=_get_main_keyboard())
+            return
+
+        text = f"""🕒 <b>𝗦𝗘𝗦𝗦𝗜𝗢𝗡 𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦: {matched.get('name')}</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🆔 <b>ID:</b> <code>{s_id}</code>
+🏷️ <b>Name:</b> <b>{matched.get('name')}</b>
+⏰ <b>Timing:</b> <code>{matched.get('start')} – {matched.get('end')} IST</code>
+🎯 <b>Target Rounds:</b> <code>{matched.get('max_rounds', 15)} Signals</code>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Select what you want to change:"""
+        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=get_single_session_keyboard(s_id))
+
+    elif data.startswith("edit_sess_time:"):
+        s_id = int(data.split(":")[1])
+        admin_states[user.id] = {"state": "waiting_sess_time", "session_id": s_id}
+        prompt = f"""✏️ <b>Edit Timing for Session #{s_id}</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Send the new Start and End time in 24-hour IST format:
+<b>Example:</b> <code>11:00 - 11:30</code> or <code>15:30 - 16:00</code>
+
+Send new timing now:"""
+        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data=f"manage_sess:{s_id}")]]
+        await query.edit_message_text(prompt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data.startswith("edit_sess_name:"):
+        s_id = int(data.split(":")[1])
+        admin_states[user.id] = {"state": "waiting_sess_name", "session_id": s_id}
+        prompt = f"""🏷️ <b>Edit Name for Session #{s_id}</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Send the new name for this session (e.g. <code>Morning Super VIP</code>):"""
+        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data=f"manage_sess:{s_id}")]]
+        await query.edit_message_text(prompt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data.startswith("edit_sess_rnds:"):
+        s_id = int(data.split(":")[1])
+        admin_states[user.id] = {"state": "waiting_sess_rnds", "session_id": s_id}
+        prompt = f"""🎯 <b>Edit Target Rounds for Session #{s_id}</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Send the target number of signals (e.g. <code>10</code>, <code>15</code>, <code>20</code>):"""
+        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data=f"manage_sess:{s_id}")]]
+        await query.edit_message_text(prompt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data.startswith("del_sess:"):
+        s_id = int(data.split(":")[1])
+        db_manager.delete_session(s_id)
+        await query.answer(f"Session #{s_id} deleted!", show_alert=True)
+        sessions = db_manager.get_sessions()
+        await query.edit_message_text(
+            f"🗑️ <b>Session #{s_id} removed.</b>",
+            parse_mode=ParseMode.HTML,
+            reply_markup=get_sessions_manage_keyboard(sessions)
+        )
+
+    elif data == "admin_add_session":
+        admin_states[user.id] = {"state": "waiting_add_sess"}
+        prompt = """➕ <b>Add New VIP Session</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Send session details in format:
+<code>Name, Start Time, End Time, Max Rounds</code>
+
+<b>Example:</b>
+<code>Night Super VIP, 22:00, 22:30, 15</code>
+
+Send new session details now:"""
+        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data="admin_sessions")]]
+        await query.edit_message_text(prompt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data == "admin_reset_sessions":
+        db_manager.reset_sessions_to_default()
+        await query.answer("Reset to default 4 VIP daily sessions!", show_alert=True)
+        sessions = db_manager.get_sessions()
+        await query.edit_message_text(
+            "🔄 <b>Sessions reset to default daily schedule.</b>",
+            parse_mode=ParseMode.HTML,
+            reply_markup=get_sessions_manage_keyboard(sessions)
+        )
 
     # 4. Browser Automation Status & Test
     elif data == "admin_browser_status":
@@ -688,7 +809,7 @@ Choose the Telegram Native Colored Button Style below:"""
                 reply_markup=_get_main_keyboard()
             )
 
-    # Case 6: Custom Message Templates (prediction / win / loss)
+    # Case 6: Custom Message Templates (prediction / win / loss / pre_session / session_start / session_summary)
     elif current_state.startswith("waiting_tpl_"):
         tpl_type = current_state.replace("waiting_tpl_", "")
         admin_states.pop(user.id, None)
@@ -698,3 +819,75 @@ Choose the Telegram Native Colored Button Style below:"""
             parse_mode=ParseMode.HTML,
             reply_markup=_get_main_keyboard()
         )
+
+    # Case 7: Session Timing
+    elif current_state == "waiting_sess_time":
+        s_id = state_info.get("session_id")
+        admin_states.pop(user.id, None)
+        parts = re.split(r'[-–,to]+', text)
+        if len(parts) >= 2:
+            st = parts[0].strip()
+            et = parts[1].strip()
+            db_manager.update_session(s_id, {"start": st, "end": et})
+            await update.message.reply_text(
+                f"✅ <b>Session #{s_id} Timing Updated to {st} – {et} IST!</b>",
+                parse_mode=ParseMode.HTML,
+                reply_markup=get_sessions_manage_keyboard(db_manager.get_sessions())
+            )
+        else:
+            await update.message.reply_text(
+                "❌ Invalid format! Please enter as <code>11:00 - 11:30</code>:",
+                parse_mode=ParseMode.HTML,
+                reply_markup=get_sessions_manage_keyboard(db_manager.get_sessions())
+            )
+
+    # Case 8: Session Name
+    elif current_state == "waiting_sess_name":
+        s_id = state_info.get("session_id")
+        admin_states.pop(user.id, None)
+        db_manager.update_session(s_id, {"name": text.strip()})
+        await update.message.reply_text(
+            f"✅ <b>Session #{s_id} Name updated to '{text.strip()}'!</b>",
+            parse_mode=ParseMode.HTML,
+            reply_markup=get_sessions_manage_keyboard(db_manager.get_sessions())
+        )
+
+    # Case 9: Session Target Rounds
+    elif current_state == "waiting_sess_rnds":
+        s_id = state_info.get("session_id")
+        admin_states.pop(user.id, None)
+        try:
+            rnds = int(text.strip())
+            db_manager.update_session(s_id, {"max_rounds": rnds})
+            await update.message.reply_text(
+                f"✅ <b>Session #{s_id} Target Rounds updated to {rnds}!</b>",
+                parse_mode=ParseMode.HTML,
+                reply_markup=get_sessions_manage_keyboard(db_manager.get_sessions())
+            )
+        except ValueError:
+            await update.message.reply_text(
+                "❌ Please enter a valid number:",
+                reply_markup=get_sessions_manage_keyboard(db_manager.get_sessions())
+            )
+
+    # Case 10: Add New Session
+    elif current_state == "waiting_add_sess":
+        admin_states.pop(user.id, None)
+        parts = [p.strip() for p in text.split(",")]
+        if len(parts) >= 3:
+            s_name = parts[0]
+            s_start = parts[1]
+            s_end = parts[2]
+            s_rnds = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 15
+            new_sess = db_manager.add_session(s_name, s_start, s_end, s_rnds)
+            await update.message.reply_text(
+                f"✅ <b>New VIP Session '{s_name}' added [{s_start} – {s_end} IST | {s_rnds} Rounds]!</b>",
+                parse_mode=ParseMode.HTML,
+                reply_markup=get_sessions_manage_keyboard(db_manager.get_sessions())
+            )
+        else:
+            await update.message.reply_text(
+                "❌ Invalid format. Please provide: <code>Name, Start, End, Rounds</code> (e.g. <code>Night VIP, 21:00, 21:30, 15</code>):",
+                parse_mode=ParseMode.HTML,
+                reply_markup=get_sessions_manage_keyboard(db_manager.get_sessions())
+            )
