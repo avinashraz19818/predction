@@ -110,19 +110,26 @@ def get_bet_amount_keyboard(current_amount: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 def get_templates_menu_keyboard() -> InlineKeyboardMarkup:
-    """Menu to customize ALL message templates"""
+    """Menu to customize ALL message templates (matching maxie1min format)"""
     keyboard = [
         [
-            InlineKeyboardButton("🎯 1. Prediction Card", callback_data="edit_tpl:prediction"),
-            InlineKeyboardButton("🏆 2. Win Card", callback_data="edit_tpl:win")
+            InlineKeyboardButton("🎯 Prediction Card", callback_data="edit_tpl:prediction"),
+            InlineKeyboardButton("🏆 Win Card", callback_data="edit_tpl:win")
         ],
         [
-            InlineKeyboardButton("⚠️ 3. Loss Card", callback_data="edit_tpl:loss"),
-            InlineKeyboardButton("🚨 4. Pre-Session (15m)", callback_data="edit_tpl:pre_session")
+            InlineKeyboardButton("⚠️ Loss Card", callback_data="edit_tpl:loss"),
+            InlineKeyboardButton("🚨 15m Pre-Alert", callback_data="edit_tpl:pre_session")
         ],
         [
-            InlineKeyboardButton("🟢 5. Session Live Start", callback_data="edit_tpl:session_start"),
-            InlineKeyboardButton("📊 6. Session Summary", callback_data="edit_tpl:session_summary")
+            InlineKeyboardButton("🟢 Session Start", callback_data="edit_tpl:session_start"),
+            InlineKeyboardButton("📊 Session Completed", callback_data="edit_tpl:session_summary")
+        ],
+        [
+            InlineKeyboardButton("⏸️ Break Time", callback_data="edit_tpl:break"),
+            InlineKeyboardButton("🌅 Good Morning", callback_data="edit_tpl:good_morning")
+        ],
+        [
+            InlineKeyboardButton("🌙 Good Night", callback_data="edit_tpl:good_night")
         ],
         [
             InlineKeyboardButton("🔄 Reset All Templates to Default", callback_data="reset_tpl:all")

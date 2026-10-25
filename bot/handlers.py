@@ -26,7 +26,10 @@ from bot.templates import (
     DEFAULT_LOSS_TEMPLATE,
     DEFAULT_PRE_SESSION_TEMPLATE,
     DEFAULT_SESSION_START_TEMPLATE,
-    DEFAULT_SESSION_SUMMARY_TEMPLATE
+    DEFAULT_SESSION_SUMMARY_TEMPLATE,
+    DEFAULT_BREAK_TEMPLATE,
+    DEFAULT_GOOD_MORNING_TEMPLATE,
+    DEFAULT_GOOD_NIGHT_TEMPLATE
 )
 
 logger = logging.getLogger(__name__)
@@ -263,6 +266,12 @@ Select a message template below to preview and edit:"""
                 current_tpl = DEFAULT_SESSION_START_TEMPLATE
             elif tpl_type == "session_summary":
                 current_tpl = DEFAULT_SESSION_SUMMARY_TEMPLATE
+            elif tpl_type == "break":
+                current_tpl = DEFAULT_BREAK_TEMPLATE
+            elif tpl_type == "good_morning":
+                current_tpl = DEFAULT_GOOD_MORNING_TEMPLATE
+            elif tpl_type == "good_night":
+                current_tpl = DEFAULT_GOOD_NIGHT_TEMPLATE
             else:
                 current_tpl = "Default template"
 
@@ -278,9 +287,9 @@ Send your new template message text below. (HTML tags & placeholders supported).
         await query.edit_message_text(prompt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == "reset_tpl:all":
-        for t in ["prediction", "win", "loss", "pre_session", "session_start", "session_summary"]:
+        for t in ["prediction", "win", "loss", "pre_session", "session_start", "session_summary", "break", "good_morning", "good_night"]:
             db_manager.set_message_template(t, None)
-        await query.answer("All 6 message templates reset to default!", show_alert=True)
+        await query.answer("All message templates reset to default!", show_alert=True)
         text = _get_admin_panel_text(user.first_name)
         await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=_get_main_keyboard())
 

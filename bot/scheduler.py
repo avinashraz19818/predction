@@ -19,6 +19,9 @@ from bot.templates import (
     render_pre_session_alert_card,
     render_session_start_card,
     render_session_summary_card,
+    render_break_card,
+    render_good_morning_card,
+    render_good_night_card,
     strip_tg_emoji_tags
 )
 from bot.keyboards import get_channel_post_keyboard
@@ -37,6 +40,8 @@ class WinGoScheduler:
         self.active_session = None  # None or dict of active session details
         self.pre_alerts_sent_today = set()  # set of session_ids
         self.completed_sessions_today = set()  # set of session_ids
+        self.morning_sent_today = False
+        self.night_sent_today = False
         self.last_day_checked = None
 
         # State per game_id
@@ -183,6 +188,8 @@ class WinGoScheduler:
                 if self.last_day_checked != today_str:
                     self.pre_alerts_sent_today.clear()
                     self.completed_sessions_today.clear()
+                    self.morning_sent_today = False
+                    self.night_sent_today = False
                     self.last_day_checked = today_str
 
                 cfg = db_manager.get_system_settings()
@@ -192,6 +199,18 @@ class WinGoScheduler:
                     sessions = cfg.get("sessions", getattr(config, "DEFAULT_SESSIONS", []))
                     current_hm = now.strftime("%H:%M")
                     pre_alert_mins = int(cfg.get("pre_alert_minutes", 15))
+
+                    # Morning Greetings Check (08:00 AM IST)
+                    if now.hour >= 8 and not self.morning_sent_today:
+                        await self._broadcast_good_morning()
+                        self.morning_sent_today = True
+
+                    # Night Message Check (All sessions finished or after 22:30 IST)
+                    all_done = (len(self.completed_sessions_today) >= len(sessions) > 0)
+                    late_night = (now.hour >= 23 or (now.hour == 22 and now.minute >= 30))
+                    if (all_done or late_night) and not self.night_sent_today and not self.active_session:
+                        await self._broadcast_good_night()
+                        self.night_sent_today = True
 
                     for s in sessions:
                         s_id = s["id"]
@@ -333,6 +352,60 @@ class WinGoScheduler:
             custom_template=custom_tpl
         )
 
+        for ch in active_channels:
+            await self._safe_send_message(ch, text)
+
+        # Broadcast Break Time Card (matching maxie1min format)
+        await asyncio.sleep(2)
+        await self._broadcast_break(next_text, duration_mins=15)
+
+    async def _broadcast_break(self, next_session_text: str, duration_mins: int = 15):
+        """Sends Break Time notice between sessions to all active channels"""
+        channels = db_manager.get_all_channels()
+        active_channels = [c for c in channels if c.get("is_active", True)]
+        if not active_channels:
+            return
+
+        logger.info(f"⏸️ Broadcasting Break Time Card (Next: {next_session_text})...")
+        custom_tpl = db_manager.get_message_template("break")
+        break_text = render_break_card(
+            next_session_text=next_session_text,
+            duration_mins=duration_mins,
+            custom_template=custom_tpl
+        )
+        for ch in active_channels:
+            await self._safe_send_message(ch, break_text)
+
+    async def _broadcast_good_morning(self):
+        """Sends daily morning greeting kickoff to all active channels"""
+        channels = db_manager.get_all_channels()
+        active_channels = [c for c in channels if c.get("is_active", True)]
+        if not active_channels:
+            return
+
+        logger.info("🌅 Broadcasting Good Morning Card to all channels...")
+        custom_tpl = db_manager.get_message_template("good_morning")
+        text = render_good_morning_card(custom_template=custom_tpl)
+        for ch in active_channels:
+            await self._safe_send_message(ch, text)
+
+    async def _broadcast_good_night(self):
+        """Sends evening signoff completion report to all active channels"""
+        channels = db_manager.get_all_channels()
+        active_channels = [c for c in channels if c.get("is_active", True)]
+        if not active_channels:
+            return
+
+        tot_wins = sum(c.get("stats", {}).get("wins", 0) for c in channels)
+        tot_losses = sum(c.get("stats", {}).get("losses", 0) for c in channels)
+
+        logger.info(f"🌙 Broadcasting Good Night Card ({tot_wins}W / {tot_losses}L)...")
+        custom_tpl = db_manager.get_message_template("good_night")
+        text = render_good_night_card(
+            wins=tot_wins,
+            losses=tot_losses,
+            custom_template=custom_tpl
+        )
         for ch in active_channels:
             await self._safe_send_message(ch, text)
 

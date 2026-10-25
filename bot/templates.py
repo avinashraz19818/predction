@@ -43,30 +43,61 @@ DEFAULT_PRE_SESSION_TEMPLATE = """{warning} <b>𝗩𝗜𝗣 𝗣𝗥𝗘𝗗𝗜
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 {lightning} <i>Live signals will begin automatically right on time. Get ready!</i>"""
 
-DEFAULT_SESSION_START_TEMPLATE = """🟢 <b>{session_name} 𝗜𝗦 𝗡𝗢𝗪 𝗟𝗜𝗩𝗘!</b> {crown}
+DEFAULT_SESSION_START_TEMPLATE = """{reload} <b>𝐍𝐄𝐖 𝐒𝐄𝐒𝐒𝐈𝐎𝐍 𝐒𝐓𝐀𝐑𝐓𝐄𝐃</b> {reload}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-{clock} <b>𝗦𝗲𝘀𝘀𝗶𝗼𝗻 𝗧𝗶𝗺𝗶𝗻𝗴:</b> <code>Until {end_time} IST</code>
-🎮 <b>𝗚𝗮𝗺𝗲:</b> <code>{game_name}</code>
-{target} <b>𝗧𝗮𝗿𝗴𝗲𝘁 𝗥𝗼𝘂𝗻𝗱𝘀:</b> <code>{max_rounds} High-Accuracy Signals</code>
+{crown} <b>𝐁𝐃𝐆 𝐖𝐈𝐍 𝐖𝐈𝐍𝐆𝐎 𝐎𝐅𝐅𝐈𝐂𝐈𝐀𝐋</b> {crown}
+   ——————————————
+        {sparkles} <b>{game_name}</b> {sparkles}
+    —————————————
+      {check} <b>𝐒𝐄𝐒𝐒𝐈𝐎𝐍:</b> <code>{session_name}</code>
+    —————————————
+{clock} <b>Timing:</b> <code>Until {end_time} IST</code>
+{target} <b>Target Rounds:</b> <code>{max_rounds} Signals</code>
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-{fire} <b>𝗜𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀:</b>
-• Play every signal without skipping.
-• If Level 1 misses, strictly use Martingale on Level 2!
-• Once WIN occurs, immediately reset back to Base Level 1.
-━━━━━━━━━━━━━━━━━━━━━━━━━
-{rocket} <i>First prediction signal starting in 10 seconds! Good luck!</i>"""
+{rocket} <i>Session Started! Ultra-accurate predictions incoming...</i>"""
 
-DEFAULT_SESSION_SUMMARY_TEMPLATE = """{trophy} <b>{session_name} 𝗖𝗢𝗠𝗣𝗟𝗘𝗧𝗜𝗢𝗡 𝗥𝗘𝗣𝗢𝗥𝗧</b> {party}
+DEFAULT_SESSION_SUMMARY_TEMPLATE = """{trophy} <b>𝐒𝐄𝐒𝐒𝐈𝐎𝐍 𝐂𝐎𝐌𝐏𝐋𝐄𝐓𝐄𝐃</b> {trophy}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-{chart} <b>𝗧𝗼𝘁𝗮𝗹 𝗥𝗼𝘂𝗻𝗱𝘀:</b> <code>{total_rounds}</code>
-{check} <b>𝗪𝗶𝗻𝘀:</b> <code>{wins}</code> | {cross} <b>𝗟𝗼𝘀𝘀𝗲𝘀:</b> <code>{losses}</code>
-🎯 <b>𝗔𝗰𝗰𝘂𝗿𝗮𝗰𝘆 𝗥𝗮𝘁𝗲:</b> <b>{win_rate}%</b>
-{fire} <b>𝗠𝗮𝘅 𝗪𝗶𝗻 𝗦𝘁𝗿𝗲𝗮𝗸:</b> <b>{max_streak}x Consecutive</b>
-🛡️ <b>𝗠𝗮𝘅 𝗟𝗲𝘃𝗲𝗟 𝗨𝘀𝗲𝗱:</b> <b>Level {max_level_used}</b>
-{money} <b>𝗘𝘀𝘁𝗶𝗺𝗮𝘁𝗲𝗱 𝗣𝗿𝗼𝗳𝗶𝘁:</b> <b>+₹{profit}</b>
+{crown} <b>{session_name}</b> {crown}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-{clock} <b>𝗡𝗲𝘅𝘁 𝗦𝗲𝘀𝘀𝗶𝗼𝗻:</b> <code>{next_session}</code>
+{chart} <b>Total Predictions:</b> <code>{total_rounds}</code>
+{check} <b>Wins:</b> <code>{wins}</code>
+{cross} <b>Losses:</b> <code>{losses}</code>
+🎯 <b>Win Rate:</b> <b>{win_rate}%</b>
+{fire} <b>Best Streak:</b> <b>{max_streak}x Consecutive</b>
+🛡️ <b>Max Level Used:</b> <b>Level {max_level_used}</b>
+{money} <b>Estimated Profit:</b> <b>+₹{profit}</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{clock} <b>Next Session:</b> <code>{next_session}</code>
 🌟 <i>Congratulations to all VIP members who played this session!</i>"""
+
+DEFAULT_BREAK_TEMPLATE = """{break_icon} <b>𝐁𝐑𝐄𝐀𝐊 𝐓𝐈𝐌𝐄</b> {break_icon}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🌀 <b>{duration_mins} Minutes Break</b>
+{clock} <b>Next Session:</b> <code>{next_session}</code>
+
+{sleep} <i>Taking a short break...</i>
+{reload} <i>Back with even smarter predictions!</i>
+
+Don't miss this opportunity!
+{target} <i>Next session starts soon...</i>"""
+
+DEFAULT_GOOD_MORNING_TEMPLATE = """{sun} <b>𝐆𝐎𝐎𝐃 𝐌𝐎𝐑𝐍𝐈𝐍𝐆 𝐖𝐈𝐍𝐍𝐄𝐑𝐒!</b> {sun}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{sparkles} <i>A new day of winning begins!</i>
+{lightning} <i>VIP Predictions starting today!</i>
+{money} <i>Let's make today profitable!</i>
+
+{coffee} <i>Have your coffee ready...</i>
+{rocket} <i>Ultra-smart WinGo signals starting soon!</i>"""
+
+DEFAULT_GOOD_NIGHT_TEMPLATE = """{moon} <b>𝐆𝐎𝐎𝐃 𝐍𝐈𝐆𝐇𝐓 𝐖𝐈𝐍𝐍𝐄𝐑𝐒!</b> {moon}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{sleep} <i>VIP Prediction sessions concluded for today!</i>
+{chart} <b>Today's Record:</b> <code>{wins} Wins / {losses} Losses ({win_rate}% Win Rate)</code>
+
+{moon} <i>Sweet dreams winners!</i>
+{reload} <i>See you tomorrow for more massive wins!</i>"""
 
 PREMIUM_EMOJIS = {
     "fire": '<tg-emoji emoji-id="5420315771991497307">🔥</tg-emoji>',
@@ -87,7 +118,12 @@ PREMIUM_EMOJIS = {
     "link": '<tg-emoji emoji-id="4958689671950369798">🔗</tg-emoji>',
     "reload": '<tg-emoji emoji-id="5264727218734524899">🔄</tg-emoji>',
     "party": '<tg-emoji emoji-id="5436040291507247633">🎉</tg-emoji>',
-    "star2": '<tg-emoji emoji-id="5458799228719472718">🌟</tg-emoji>'
+    "star2": '<tg-emoji emoji-id="5458799228719472718">🌟</tg-emoji>',
+    "moon": '<tg-emoji emoji-id="5208554136039073738">🌙</tg-emoji>',
+    "sun": '<tg-emoji emoji-id="5413883478645169306>🌅</tg-emoji>',
+    "coffee": '<tg-emoji emoji-id="5451959871257713464>☕</tg-emoji>',
+    "sleep": '<tg-emoji emoji-id="5359543311897998264>💤</tg-emoji>',
+    "break_icon": '<tg-emoji emoji-id="5359543311897998264">⏸️</tg-emoji>'
 }
 
 def _load_emoji_config():
@@ -345,6 +381,10 @@ def render_session_start_card(
     target = em("target", "🎯")
     fire = em("fire", "🔥")
 
+    reload_em = em("reload", "🔄")
+    sparkles = em("sparkles", "✨")
+    check = em("check", "✅")
+
     if custom_template and custom_template.strip():
         txt = custom_template
         replacements = {
@@ -356,24 +396,27 @@ def render_session_start_card(
             "{rocket}": rocket,
             "{clock}": clock,
             "{target}": target,
-            "{fire}": fire
+            "{fire}": fire,
+            "{reload}": reload_em,
+            "{sparkles}": sparkles,
+            "{check}": check
         }
         for k, v in replacements.items():
             txt = txt.replace(k, v)
         return txt
 
-    msg = f"""🟢 <b>{session_name.upper()} 𝗜𝗦 𝗡𝗢𝗪 𝗟𝗜𝗩𝗘!</b> {crown}
+    msg = f"""{reload_em} <b>𝐍𝐄𝐖 𝐒𝐄𝐒𝐒𝐈𝐎𝐍 𝐒𝐓𝐀𝐑𝐓𝐄𝐃</b> {reload_em}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-{clock} <b>𝗦𝗲𝘀𝘀𝗶𝗼𝗻 𝗧𝗶𝗺𝗶𝗻𝗴:</b> <code>Until {end_time} IST</code>
-🎮 <b>𝗚𝗮𝗺𝗲:</b> <code>{game_name}</code>
-{target} <b>𝗧𝗮𝗿𝗴𝗲𝘁 𝗥𝗼𝘂𝗻𝗱𝘀:</b> <code>{max_rounds} High-Accuracy Signals</code>
+{crown} <b>𝐁𝐃𝐆 𝐖𝐈𝐍 𝐖𝐈𝐍𝐆𝐎 𝐎𝐅𝐅𝐈𝐂𝐈𝐀𝐋</b> {crown}
+   ——————————————
+        {sparkles} <b>{game_name.upper()}</b> {sparkles}
+    —————————————
+      {check} <b>𝐒𝐄𝐒𝐒𝐈𝐎𝐍:</b> <code>{session_name}</code>
+    —————————————
+{clock} <b>Timing:</b> <code>Until {end_time} IST</code>
+{target} <b>Target Rounds:</b> <code>{max_rounds} Signals</code>
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-{fire} <b>𝗜𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀:</b>
-• Play every signal without skipping.
-• If Level 1 misses, strictly use Martingale on Level 2!
-• Once WIN occurs, immediately reset back to Base Level 1.
-━━━━━━━━━━━━━━━━━━━━━━━━━
-{rocket} <i>First prediction signal starting in 10 seconds! Good luck!</i>"""
+{rocket} <i>Session Started! Ultra-accurate predictions incoming...</i>"""
     return msg
 
 def render_session_summary_card(
@@ -396,6 +439,8 @@ def render_session_summary_card(
     money = em("money", "💰")
     clock = em("clock", "⏰")
 
+    crown = em("crown", "👑")
+
     win_rate = (wins / total_rounds * 100) if total_rounds > 0 else 0.0
 
     if custom_template and custom_template.strip():
@@ -411,6 +456,7 @@ def render_session_summary_card(
             "{profit}": f"{profit_inr:,.2f}",
             "{next_session}": next_session_text,
             "{trophy}": trophy,
+            "{crown}": crown,
             "{party}": party,
             "{chart}": chart,
             "{check}": check,
@@ -423,15 +469,122 @@ def render_session_summary_card(
             txt = txt.replace(k, v)
         return txt
 
-    msg = f"""{trophy} <b>{session_name.upper()} 𝗖𝗢𝗠𝗣𝗟𝗘𝗧𝗜𝗢𝗡 𝗥𝗘𝗣𝗢𝗥𝗧</b> {party}
+    msg = f"""{trophy} <b>𝐒𝐄𝐒𝐒𝐈𝐎𝐍 𝐂𝐎𝐌𝐏𝐋𝐄𝐓𝐄𝐃</b> {trophy}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-{chart} <b>𝗧𝗼𝘁𝗮𝗹 𝗥𝗼𝘂𝗻𝗱𝘀:</b> <code>{total_rounds}</code>
-{check} <b>𝗪𝗶𝗻𝘀:</b> <code>{wins}</code> | {cross} <b>𝗟𝗼𝘀𝘀𝗲𝘀:</b> <code>{losses}</code>
-🎯 <b>𝗔𝗰𝗰𝘂𝗿𝗮𝗰𝘆 𝗥𝗮𝘁𝗲:</b> <b>{win_rate:.1f}%</b>
-{fire} <b>𝗠𝗮𝘅 𝗪𝗶𝗻 𝗦𝘁𝗿𝗲𝗮𝗸:</b> <b>{max_streak}x Consecutive</b>
-🛡️ <b>𝗠𝗮𝘅 𝗟𝗲𝘃𝗲𝗹 𝗨𝘀𝗲𝗱:</b> <b>Level {max_level_used}</b>
-{money} <b>𝗘𝘀𝘁𝗶𝗺𝗮𝘁𝗲𝗱 𝗣𝗿𝗼𝗳𝗶𝘁:</b> <b>+₹{profit_inr:,.2f}</b>
+{crown} <b>{session_name}</b> {crown}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-{clock} <b>𝗡𝗲𝘅𝘁 𝗦𝗲𝘀𝘀𝗶𝗼𝗻:</b> <code>{next_session_text}</code>
+{chart} <b>Total Predictions:</b> <code>{total_rounds}</code>
+{check} <b>Wins:</b> <code>{wins}</code>
+{cross} <b>Losses:</b> <code>{losses}</code>
+🎯 <b>Win Rate:</b> <b>{win_rate:.1f}%</b>
+{fire} <b>Best Streak:</b> <b>{max_streak}x Consecutive</b>
+🛡️ <b>Max Level Used:</b> <b>Level {max_level_used}</b>
+{money} <b>Estimated Profit:</b> <b>+₹{profit_inr:,.2f}</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{clock} <b>Next Session:</b> <code>{next_session_text}</code>
 🌟 <i>Congratulations to all VIP members who played this session!</i>"""
     return msg
+
+def render_break_card(
+    next_session_text: str,
+    duration_mins: int = 15,
+    custom_template: Optional[str] = None
+) -> str:
+    break_icon = em("break_icon", "⏸️")
+    clock = em("clock", "⏰")
+    sleep = em("sleep", "💤")
+    reload_em = em("reload", "🔄")
+    target = em("target", "🎯")
+
+    if custom_template and custom_template.strip():
+        txt = custom_template
+        replacements = {
+            "{break_icon}": break_icon,
+            "{duration_mins}": str(duration_mins),
+            "{next_session}": next_session_text,
+            "{clock}": clock,
+            "{sleep}": sleep,
+            "{reload}": reload_em,
+            "{target}": target
+        }
+        for k, v in replacements.items():
+            txt = txt.replace(k, v)
+        return txt
+
+    return f"""{break_icon} <b>𝐁𝐑𝐄𝐀𝐊 𝐓𝐈𝐌𝐄</b> {break_icon}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🌀 <b>{duration_mins} Minutes Break</b>
+{clock} <b>Next Session:</b> <code>{next_session_text}</code>
+
+{sleep} <i>Taking a short break...</i>
+{reload_em} <i>Back with even smarter predictions!</i>
+
+Don't miss this opportunity!
+{target} <i>Next session starts soon...</i>"""
+
+def render_good_morning_card(custom_template: Optional[str] = None) -> str:
+    sun = em("sun", "🌅")
+    sparkles = em("sparkles", "✨")
+    lightning = em("lightning", "⚡")
+    money = em("money", "💰")
+    coffee = em("coffee", "☕")
+    rocket = em("rocket", "🚀")
+
+    if custom_template and custom_template.strip():
+        txt = custom_template
+        replacements = {
+            "{sun}": sun,
+            "{sparkles}": sparkles,
+            "{lightning}": lightning,
+            "{money}": money,
+            "{coffee}": coffee,
+            "{rocket}": rocket
+        }
+        for k, v in replacements.items():
+            txt = txt.replace(k, v)
+        return txt
+
+    return f"""{sun} <b>𝐆𝐎𝐎𝐃 𝐌𝐎𝐑𝐍𝐈𝐍𝐆 𝐖𝐈𝐍𝐍𝐄𝐑𝐒!</b> {sun}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{sparkles} <i>A new day of winning begins!</i>
+{lightning} <i>VIP Predictions starting today!</i>
+{money} <i>Let's make today profitable!</i>
+
+{coffee} <i>Have your coffee ready...</i>
+{rocket} <i>Ultra-smart WinGo signals starting soon!</i>"""
+
+def render_good_night_card(
+    wins: int = 0,
+    losses: int = 0,
+    custom_template: Optional[str] = None
+) -> str:
+    moon = em("moon", "🌙")
+    sleep = em("sleep", "💤")
+    chart = em("chart", "📊")
+    reload_em = em("reload", "🔄")
+
+    total = wins + losses
+    win_rate = (wins / total * 100) if total > 0 else 0.0
+
+    if custom_template and custom_template.strip():
+        txt = custom_template
+        replacements = {
+            "{moon}": moon,
+            "{sleep}": sleep,
+            "{chart}": chart,
+            "{reload}": reload_em,
+            "{wins}": str(wins),
+            "{losses}": str(losses),
+            "{win_rate}": f"{win_rate:.1f}"
+        }
+        for k, v in replacements.items():
+            txt = txt.replace(k, v)
+        return txt
+
+    return f"""{moon} <b>𝐆𝐎𝐎𝐃 𝐍𝐈𝐆𝐇𝐓 𝐖𝐈𝐍𝐍𝐄𝐑𝐒!</b> {moon}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+{sleep} <i>VIP Prediction sessions concluded for today!</i>
+{chart} <b>Today's Record:</b> <code>{wins} Wins / {losses} Losses ({win_rate:.1f}% Win Rate)</code>
+
+{moon} <i>Sweet dreams winners!</i>
+{reload_em} <i>See you tomorrow for more massive wins!</i>"""

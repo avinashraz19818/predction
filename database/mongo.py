@@ -27,6 +27,9 @@ class DatabaseManager:
             "tpl_pre_session": None,
             "tpl_session_start": None,
             "tpl_session_summary": None,
+            "tpl_break": None,
+            "tpl_good_morning": None,
+            "tpl_good_night": None,
         }
         self._channel_loss_messages = {}
         self.connect()
@@ -82,6 +85,9 @@ class DatabaseManager:
                     "tpl_pre_session": None,
                     "tpl_session_start": None,
                     "tpl_session_summary": None,
+                    "tpl_break": None,
+                    "tpl_good_morning": None,
+                    "tpl_good_night": None,
                     "updated_at": datetime.utcnow()
                 }
                 self.db.settings.insert_one(initial)
