@@ -3,15 +3,16 @@ import logging
 from typing import Optional
 
 from services.playwright_worker import playwright_worker
-from bot.card_generator import generate_win_result_card
 
 logger = logging.getLogger(__name__)
 
 class BetAutomationService:
     """
-    Seamless interface that coordinates:
-    1. Real Playwright automated bet placement & real win-popup screenshot capture.
-    2. Instant high-resolution fallback rendering via card_generator if browser is offline.
+    Playwright Real Game Automation Service:
+    - Real bet placement on live game board (WinGo).
+    - 100% Real browser screen capture of the native 'Congratulations' Winning Popup.
+    - Captures real game board & My History table if popup auto-closed.
+    - ZERO fake canvas/Pillow drawings.
     """
 
     def __init__(self):
@@ -42,39 +43,46 @@ class BetAutomationService:
         streak: int = 1
     ) -> Optional[io.BytesIO]:
         """
-        Attempts real live Playwright screen capture of the native game winning popup.
-        If browser is not ready or popup didn't fire, seamlessly falls back to authentic
-        BDGWin canvas generator.
+        Captures 100% genuine live screenshot directly from the headless browser:
+        1. First tries to capture the real on-screen native 'Congratulations' Winning Popup.
+        2. If popup closed, captures the real game screen with the updated balance & history table.
+        3. Never generates or sends any fake canvas drawings.
         """
-        # 1. Try real Playwright popup capture
-        if self.worker.is_ready:
+        if not self.worker.is_ready:
+            logger.info("ℹ️ Browser not yet initialized/ready; re-initializing...")
             try:
-                real_shot = await self.worker.capture_real_win_popup(
-                    game_id=game_id,
-                    issue_number=target_issue,
-                    choice=choice,
-                    timeout_seconds=12.0
-                )
-                if real_shot:
-                    logger.info(f"📸 Real Playwright Winning Popup captured for issue {target_issue}!")
-                    return real_shot
+                await self.worker.initialize()
             except Exception as e:
-                logger.warning(f"Real popup capture skipped: {e}")
+                logger.warning(f"Re-init warning: {e}")
 
-        # 2. Seamless Fallback Generator
+        if not self.worker.is_ready:
+            logger.warning("⚠️ Real browser is not connected to the game. Skipping screenshot (no fake images will be sent).")
+            return None
+
+        # 1. Real Playwright Winning Popup capture
         try:
-            logger.info(f"🎨 Generating authentic BDGWin Win Card for issue {target_issue}...")
-            return generate_win_result_card(
-                game_name="WinGo 1M" if "1m" in game_id else "WinGo",
+            real_popup_shot = await self.worker.capture_real_win_popup(
+                game_id=game_id,
                 issue_number=target_issue,
                 choice=choice,
-                actual_number=actual_number,
-                level=level,
-                streak=streak
+                timeout_seconds=14.0
             )
-        except Exception as gen_err:
-            logger.error(f"Fallback generation error: {gen_err}")
-            return None
+            if real_popup_shot:
+                logger.info(f"📸 100% Real Playwright Winning Popup captured for period {target_issue}!")
+                return real_popup_shot
+        except Exception as e:
+            logger.warning(f"Winning popup capture warning: {e}")
+
+        # 2. Real Playwright Game Board Capture (shows real wallet balance + real My History row)
+        try:
+            logger.info(f"📸 Capturing real live game board & history table for period {target_issue}...")
+            real_board_shot = await self.worker.capture_board_screenshot(game_id=game_id)
+            if real_board_shot:
+                return real_board_shot
+        except Exception as e:
+            logger.error(f"Board screenshot error: {e}")
+
+        return None
 
     async def close(self):
         await self.worker.close()

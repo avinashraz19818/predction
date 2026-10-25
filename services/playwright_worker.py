@@ -1,17 +1,18 @@
 import os
 import io
+import re
 import time
 import shutil
 import asyncio
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 from playwright.async_api import async_playwright, BrowserContext, Page
 
 import config
 
 logger = logging.getLogger(__name__)
 
-# Real WinGo DOM Selectors (Compatible with BDGWin, YaarWin, 91Club, 51Game, AR-Lottery)
+# Real WinGo DOM Selectors from smex (Compatible with BDGWin, YaarWin, 91Club, 51Game, AR-Lottery)
 MOBILE_CONTEXT = {
     "user_agent": "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
     "viewport": {"width": 412, "height": 860},
@@ -19,6 +20,15 @@ MOBILE_CONTEXT = {
     "is_mobile": True,
     "has_touch": True,
 }
+
+PERIOD_SELECTOR = ".TimeLeft__C-id"
+BALANCE_SELECTOR = ".Wallet__C-balance-l1"
+GAME_ITEM_SELECTOR = ".GameList__C-item"
+BET_POPUP_SELECTOR = ".lottery-container, .Betting__Popup-body"
+BET_CONFIRM_SELECTOR = ".footer button.bet-amount, button.bet-amount, .Betting__Popup-foot-s, button:has-text('Total amount'), button:has-text('Confirm')"
+LOGIN_PHONE_SELECTOR = "input[name='userNumber'], input[placeholder*='phone'], input[placeholder*='Phone'], input[type='tel']"
+LOGIN_PASS_SELECTOR = "input[type='password']"
+LOGIN_SUBMIT_SELECTOR = "button:has-text('Log in'), button:has-text('Login'), .signIn__container-button button, .login-btn"
 
 CLOSE_SELECTORS = [
     ".first-recharge-queue-dialog__close",
@@ -54,8 +64,8 @@ WIN_POPUP_JS = """() => {
 
 class PlaywrightWinGoWorker:
     """
-    Playwright-based real game player and win-popup screenshot capture engine.
-    Runs in headless mode on VPS, Heroku, or local development.
+    Playwright-based real game player and win-popup screenshot capture engine (smex pattern).
+    Operates on live game screen with headless Chromium/Google-Chrome.
     """
 
     def __init__(self):
@@ -135,17 +145,17 @@ class PlaywrightWinGoWorker:
                     **MOBILE_CONTEXT,
                 }
                 if chromium_path:
-                    logger.info(f"🌐 Using detected Chromium binary: {chromium_path}")
+                    logger.info(f"🌐 Using detected Chromium/Chrome binary: {chromium_path}")
                     launch_opts["executable_path"] = chromium_path
 
-                logger.info(f"🚀 Launching Playwright browser (Profile: {self.profile_dir}, Headless: {self.headless})...")
+                logger.info(f"🚀 Launching Playwright browser context (Profile: {self.profile_dir})...")
                 self.context = await self.playwright.chromium.launch_persistent_context(
                     self.profile_dir,
                     **launch_opts
                 )
 
                 self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
-                self.page.set_default_timeout(20000)
+                self.page.set_default_timeout(25000)
 
                 # Attempt Login / Open game
                 logged_in = await self._ensure_login()
@@ -165,9 +175,27 @@ class PlaywrightWinGoWorker:
                 return False
 
     async def _dismiss_all_popups(self):
-        """Dismisses any random marketing / check-in modals"""
+        """Dismisses any random marketing, announcement, or password modals (smex logic)"""
         if not self.page:
             return
+        try:
+            # Dismiss site password-change popup
+            await self.page.evaluate(r"""() => {
+                const dialogs = [...document.querySelectorAll('div[role="dialog"]')];
+                for (const dialog of dialogs) {
+                    if (dialog.querySelector('input[autocomplete="new-password"]')) {
+                        dialog.style.setProperty('display', 'none', 'important');
+                        dialog.setAttribute('aria-hidden', 'true');
+                    }
+                }
+                document.querySelectorAll('.van-overlay').forEach(o => {
+                    o.style.setProperty('display', 'none', 'important');
+                });
+                document.body.classList.remove('van-overflow-hidden');
+            }""")
+        except Exception:
+            pass
+
         for _ in range(4):
             clicked_any = False
             for sel in CLOSE_SELECTORS:
@@ -197,8 +225,8 @@ class PlaywrightWinGoWorker:
                 return True
 
             # Find login inputs
-            phone_locator = self.page.locator("input[name='userNumber'], input[placeholder*='phone'], input[placeholder*='Phone']").first
-            pwd_locator = self.page.locator("input[type='password']").first
+            phone_locator = self.page.locator(LOGIN_PHONE_SELECTOR).first
+            pwd_locator = self.page.locator(LOGIN_PASS_SELECTOR).first
 
             if await phone_locator.is_visible(timeout=3000):
                 await phone_locator.fill(self.username)
@@ -206,8 +234,7 @@ class PlaywrightWinGoWorker:
                 await pwd_locator.fill(self.password)
                 await asyncio.sleep(0.3)
 
-                # Click Login Button
-                login_btn = self.page.locator("button:has-text('Log in'), button:has-text('Login'), button.login-btn").first
+                login_btn = self.page.locator(LOGIN_SUBMIT_SELECTOR).first
                 await login_btn.click()
                 logger.info("Submitting login form...")
                 await asyncio.sleep(4.0)
@@ -233,7 +260,7 @@ class PlaywrightWinGoWorker:
 
     async def place_bet(self, game_id: str, choice: str, issue_number: str = "") -> dict:
         """
-        Places real bet on Big or Small (or number) on the game board.
+        Places real bet on Big or Small (or number ball) on the live game board.
         Returns dict with status and details.
         """
         async with self._lock:
@@ -245,22 +272,29 @@ class PlaywrightWinGoWorker:
                 await self._open_room(game_id)
                 await self._dismiss_all_popups()
 
-                # Target Big / Small selector
                 target_text = "Big" if choice.upper() == "BIG" else "Small"
-                target_locator = self.page.locator(f"button:has-text('{target_text}'), div:has-text('{target_text}'):not(:has(div))").first
+                target_locator = self.page.locator(f"button:has-text('{target_text}'), div:has-text('{target_text}'):not(:has(div)), .Betting__C-foot-b, .bet-btn-big" if choice.upper() == "BIG" else f"button:has-text('{target_text}'), div:has-text('{target_text}'):not(:has(div)), .Betting__C-foot-s, .bet-btn-small").first
 
-                if not await target_locator.is_visible(timeout=4000):
-                    logger.warning(f"Target button {target_text} not found on board.")
-                    return {"ok": False, "reason": "target_button_missing"}
+                clicked = False
+                if await target_locator.is_visible(timeout=3000):
+                    await target_locator.click(force=True)
+                    clicked = True
+                else:
+                    # Fallback: Click on lucky number ball corresponding to Big/Small (e.g. 7 for Big, 2 for Small)
+                    ball_num = "7" if choice.upper() == "BIG" else "2"
+                    num_ball = self.page.locator(f".Betting__C-numC-item{ball_num}, [class*='numC-item{ball_num}']").first
+                    if await num_ball.is_visible(timeout=2500):
+                        await num_ball.click(force=True)
+                        clicked = True
 
-                await target_locator.click(force=True)
+                if not clicked:
+                    logger.warning(f"Could not click bet selector for {choice.upper()}.")
+                    return {"ok": False, "reason": "selector_missing"}
+
                 await asyncio.sleep(0.6)
 
-                # Betting Popup is open: Click confirm / 'Total amount'
-                confirm_btn = self.page.locator(
-                    ".footer button.bet-amount, button.bet-amount, .Betting__Popup-foot-s, button:has-text('Total amount')"
-                ).first
-
+                # Confirm Bet Modal
+                confirm_btn = self.page.locator(BET_CONFIRM_SELECTOR).first
                 if await confirm_btn.is_visible(timeout=3000):
                     await confirm_btn.click()
                     logger.info(f"✅ Real bet placed on {choice.upper()} for period {issue_number}!")
@@ -275,7 +309,7 @@ class PlaywrightWinGoWorker:
                     }
                     return {"ok": True, "choice": choice.upper(), "issue": issue_number}
                 else:
-                    logger.warning("Bet confirm button ('Total amount') not found.")
+                    logger.warning("Bet confirm button not found.")
                     return {"ok": False, "reason": "confirm_button_missing"}
 
             except Exception as e:
@@ -290,8 +324,8 @@ class PlaywrightWinGoWorker:
         timeout_seconds: float = 16.0
     ) -> Optional[io.BytesIO]:
         """
-        Actively monitors the screen for the real native 'Congratulations' Winning Popup.
-        When the popup appears on screen, captures high-resolution screenshot and returns it!
+        Actively monitors screen for the real native 'Congratulations' Winning Popup.
+        Takes full screenshot of the real browser page when popup is active.
         """
         async with self._lock:
             if not self.is_ready or not self.page:
@@ -313,22 +347,21 @@ class PlaywrightWinGoWorker:
                             break
                     except Exception:
                         pass
-                    await asyncio.sleep(0.09)
+                    await asyncio.sleep(0.08)
 
                 if popup_detected:
                     logger.info("🎉 REAL WINNING POPUP DETECTED ON LIVE GAME! Capturing screenshot...")
-                    await asyncio.sleep(0.25)  # Allow bonus amount text to finish sliding animation
+                    await asyncio.sleep(0.25)  # Let bonus amount animation settle
                     screenshot_bytes = await self.page.screenshot(type="png", full_page=False)
 
-                    # Quick cleanup of popup for next round
+                    # Quick dismiss
                     await self._dismiss_all_popups()
 
                     buf = io.BytesIO(screenshot_bytes)
                     buf.seek(0)
                     return buf
                 else:
-                    logger.info("ℹ️ Winning popup was not visible on screen within timeout window.")
-                    # Return board view screenshot as fallback if needed
+                    logger.info("ℹ️ Winning popup was not visible within timeout window.")
                     return None
 
             except Exception as e:
@@ -336,7 +369,7 @@ class PlaywrightWinGoWorker:
                 return None
 
     async def capture_board_screenshot(self, game_id: str) -> Optional[io.BytesIO]:
-        """Captures standard clean screenshot of current game board and history table"""
+        """Captures real clean screenshot of current game board and history table"""
         async with self._lock:
             if not self.is_ready or not self.page:
                 return None
