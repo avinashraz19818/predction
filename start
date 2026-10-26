@@ -11,7 +11,15 @@ if [ -f "$PID_FILE" ]; then
 fi
 
 pkill -f ".*${BOT_FILE}" 2>/dev/null || true
+pkill -f ".*chrome" 2>/dev/null || true
+pkill -f ".*chromium" 2>/dev/null || true
 sleep 2
+
+# Archive previous log so tail -f only shows fresh output
+if [ -f "$LOG_FILE" ]; then
+    tail -n 300 "$LOG_FILE" > "${LOG_FILE}.old" 2>/dev/null || true
+    > "$LOG_FILE"
+fi
 
 if [ -d ".venv" ]; then
     . .venv/bin/activate

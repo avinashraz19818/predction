@@ -142,6 +142,15 @@ class PlaywrightWinGoWorker:
 
             try:
                 os.makedirs(self.profile_dir, exist_ok=True)
+                # Remove stale Chrome profile locks from previous killed runs
+                for lock_name in ["SingletonLock", "SingletonCookie", "SingletonSocket"]:
+                    lock_path = os.path.join(self.profile_dir, lock_name)
+                    if os.path.exists(lock_path) or os.path.islink(lock_path):
+                        try:
+                            os.remove(lock_path)
+                        except Exception:
+                            pass
+
                 self.playwright = await async_playwright().start()
 
                 chromium_path = self._get_chromium_path()
@@ -152,7 +161,12 @@ class PlaywrightWinGoWorker:
                         "--disable-setuid-sandbox",
                         "--disable-dev-shm-usage",
                         "--disable-gpu",
+                        "--disable-software-rasterizer",
+                        "--disable-extensions",
                         "--disable-blink-features=AutomationControlled",
+                        "--no-first-run",
+                        "--mute-audio",
+                        "--js-flags=--max-old-space-size=256",
                     ],
                     **MOBILE_CONTEXT,
                 }
