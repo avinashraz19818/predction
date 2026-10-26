@@ -1,6 +1,8 @@
+import time
 import asyncio
 import logging
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.request import HTTPXRequest
 
 import config
 from bot.handlers import start_handler, callback_handler, message_handler
@@ -38,9 +40,19 @@ def main():
     logger.info("⚡ Games: WinGo 30s, 1M, 3M, 5M (Multi-Channel)")
     logger.info("🎨 UI: Separate Messages, Styled High-Impact Buttons, AI Prediction")
 
+    # Resilient Telegram Network Configuration (prevents ConnectTimeout / TimedOut on VPS)
+    request_config = HTTPXRequest(
+        connection_pool_size=30,
+        connect_timeout=20.0,
+        read_timeout=30.0,
+        write_timeout=20.0,
+        pool_timeout=15.0
+    )
+
     app = (
         Application.builder()
         .token(config.BOT_TOKEN)
+        .request(request_config)
         .post_init(post_init)
         .post_shutdown(post_shutdown)
         .build()
@@ -51,8 +63,21 @@ def main():
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler((filters.TEXT | filters.Document.ALL) & ~filters.COMMAND, message_handler))
 
-    # Run Telegram Bot polling
-    app.run_polling(drop_pending_updates=True)
+    # Resilient polling loop with bootstrap retries
+    while True:
+        try:
+            app.run_polling(
+                drop_pending_updates=True,
+                bootstrap_retries=5,
+                timeout=30,
+                poll_interval=1.0
+            )
+            break
+        except (KeyboardInterrupt, SystemExit):
+            break
+        except Exception as e:
+            logger.error(f"Polling loop network error: {e}. Reconnecting in 3s...", exc_info=True)
+            time.sleep(3)
 
 if __name__ == "__main__":
     main()
