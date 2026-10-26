@@ -41,9 +41,9 @@ class DatabaseManager:
         try:
             self.client = MongoClient(
                 config.MONGO_URI,
-                serverSelectionTimeoutMS=4000,
-                connectTimeoutMS=4000,
-                socketTimeoutMS=5000,
+                serverSelectionTimeoutMS=8000,
+                connectTimeoutMS=8000,
+                socketTimeoutMS=10000,
                 tlsAllowInvalidCertificates=True
             )
             self.db = self.client[config.MONGO_DB_NAME]
@@ -126,7 +126,11 @@ class DatabaseManager:
                     doc["apk_file_name"] = "ZayroVipHack.apk"
                 if "apk_caption" not in doc:
                     doc["apk_caption"] = "📥 <b>VIP Mod APK</b> — Download & Win Every Round!"
+                if isinstance(doc.get("custom_html_template"), str) and len(doc["custom_html_template"]) > 500:
+                    doc["custom_html_template"] = "uploads/custom_overlay.html"
                 self._memory_settings = doc
+                import time
+                self._last_settings_fetch = time.time()
         except Exception as e:
             logger.error(f"Error initializing system settings: {e}")
 
@@ -135,11 +139,13 @@ class DatabaseManager:
     def get_system_settings(self, force_refresh: bool = False) -> dict:
         import time
         now = time.time()
-        if self.connected and (force_refresh or not self._memory_settings or (now - getattr(self, "_last_settings_fetch", 0) > 15)):
+        if self.connected and (force_refresh or not self._memory_settings or (now - getattr(self, "_last_settings_fetch", 0) > 60)):
             try:
                 doc = self.db.settings.find_one({"key": "system_config"})
                 if doc:
                     doc.pop("_id", None)
+                    if isinstance(doc.get("custom_html_template"), str) and len(doc["custom_html_template"]) > 500:
+                        doc["custom_html_template"] = "uploads/custom_overlay.html"
                     self._memory_settings = doc
                     self._last_settings_fetch = now
                     return doc
