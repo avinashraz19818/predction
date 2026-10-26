@@ -74,6 +74,9 @@ def get_admin_main_keyboard(
             InlineKeyboardButton(f"🎮 {browser_badge}", callback_data="admin_browser_status")
         ],
         [
+            InlineKeyboardButton("📱 VIP APK & HTML Overlay", callback_data="admin_apk_overlay")
+        ],
+        [
             InlineKeyboardButton("📢 Manage Channels", callback_data="admin_channels"),
             InlineKeyboardButton("➕ Add Channel", callback_data="admin_add_channel")
         ],
@@ -105,6 +108,38 @@ def get_bet_amount_keyboard(current_amount: int) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton("⬅️ Back to Admin", callback_data="admin_main")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_apk_overlay_keyboard(
+    overlay_enabled: bool = True,
+    auto_send_apk: bool = False,
+    has_apk: bool = False,
+    apk_name: str = "ZayroVipHack.apk",
+    has_custom_html: bool = False
+) -> InlineKeyboardMarkup:
+    """Settings menu for Floating HTML Overlay & Automatic APK Delivery on Win"""
+    overlay_badge = "🖼️ HTML Overlay: ON ✅" if overlay_enabled else "🖼️ HTML Overlay: OFF ❌"
+    apk_send_badge = "📱 Send APK on Win: ON ✅" if auto_send_apk else "📱 Send APK on Win: OFF ❌"
+    apk_btn_label = f"📦 Change APK ({apk_name})" if has_apk else "📦 Upload VIP APK"
+    html_btn_label = "📄 Change Custom HTML" if has_custom_html else "📄 Upload Custom HTML"
+
+    keyboard = [
+        [
+            InlineKeyboardButton(overlay_badge, callback_data="toggle_overlay"),
+            InlineKeyboardButton(apk_send_badge, callback_data="toggle_apk_send")
+        ],
+        [
+            InlineKeyboardButton(apk_btn_label, callback_data="upload_apk_prompt"),
+            InlineKeyboardButton("✏️ Edit APK Caption", callback_data="edit_apk_caption_prompt")
+        ],
+        [
+            InlineKeyboardButton(html_btn_label, callback_data="upload_html_prompt"),
+            InlineKeyboardButton("🔄 Reset Default HTML", callback_data="reset_html_overlay")
+        ],
+        [
+            InlineKeyboardButton("◀️ Back to Admin Panel", callback_data="admin_refresh")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)

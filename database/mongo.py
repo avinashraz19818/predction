@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 from datetime import datetime
 from pymongo import MongoClient
 import config
@@ -88,6 +89,12 @@ class DatabaseManager:
                     "tpl_break": None,
                     "tpl_good_morning": None,
                     "tpl_good_night": None,
+                    "html_overlay_enabled": True,
+                    "custom_html_template": None,
+                    "auto_send_apk": False,
+                    "apk_file_id": None,
+                    "apk_file_name": "ZayroVipHack.apk",
+                    "apk_caption": "📥 <b>VIP Mod APK</b> — Download & Win Every Round!",
                     "updated_at": datetime.utcnow()
                 }
                 self.db.settings.insert_one(initial)
@@ -103,6 +110,18 @@ class DatabaseManager:
                     doc["max_loss_display_level"] = 3
                 if "auto_clean_loss" not in doc:
                     doc["auto_clean_loss"] = True
+                if "html_overlay_enabled" not in doc:
+                    doc["html_overlay_enabled"] = True
+                if "custom_html_template" not in doc:
+                    doc["custom_html_template"] = None
+                if "auto_send_apk" not in doc:
+                    doc["auto_send_apk"] = False
+                if "apk_file_id" not in doc:
+                    doc["apk_file_id"] = None
+                if "apk_file_name" not in doc:
+                    doc["apk_file_name"] = "ZayroVipHack.apk"
+                if "apk_caption" not in doc:
+                    doc["apk_caption"] = "📥 <b>VIP Mod APK</b> — Download & Win Every Round!"
                 self._memory_settings = doc
         except Exception as e:
             logger.error(f"Error initializing system settings: {e}")
@@ -195,6 +214,54 @@ class DatabaseManager:
         """Retrieves and clears all pending loss message_ids for a channel"""
         channel_id = str(channel_id).strip()
         return self._channel_loss_messages.pop(channel_id, [])
+
+    # ================= HTML OVERLAY & VIP APK SETTINGS =================
+
+    def get_html_overlay_enabled(self) -> bool:
+        cfg = self.get_system_settings()
+        return bool(cfg.get("html_overlay_enabled", True))
+
+    def set_html_overlay_enabled(self, enabled: bool) -> bool:
+        self.update_system_settings({"html_overlay_enabled": bool(enabled)})
+        return bool(enabled)
+
+    def get_custom_html_template(self) -> Optional[str]:
+        cfg = self.get_system_settings()
+        return cfg.get("custom_html_template")
+
+    def set_custom_html_template(self, content: Optional[str]):
+        self.update_system_settings({"custom_html_template": content})
+
+    def get_auto_send_apk(self) -> bool:
+        cfg = self.get_system_settings()
+        return bool(cfg.get("auto_send_apk", False))
+
+    def set_auto_send_apk(self, enabled: bool) -> bool:
+        self.update_system_settings({"auto_send_apk": bool(enabled)})
+        return bool(enabled)
+
+    def get_apk_file_id(self) -> Optional[str]:
+        cfg = self.get_system_settings()
+        return cfg.get("apk_file_id")
+
+    def set_apk_file(self, file_id: str, file_name: str = "ZayroVipHack.apk"):
+        self.update_system_settings({
+            "apk_file_id": str(file_id).strip(),
+            "apk_file_name": str(file_name).strip()
+        })
+
+    def get_apk_file_name(self) -> str:
+        cfg = self.get_system_settings()
+        return cfg.get("apk_file_name", "ZayroVipHack.apk")
+
+    def get_apk_caption(self) -> str:
+        cfg = self.get_system_settings()
+        return cfg.get("apk_caption", "📥 <b>VIP Mod APK</b> — Download & Win Every Round!")
+
+    def set_apk_caption(self, caption: str) -> str:
+        caption = str(caption).strip()
+        self.update_system_settings({"apk_caption": caption})
+        return caption
 
     def get_sessions(self) -> list:
         cfg = self.get_system_settings()

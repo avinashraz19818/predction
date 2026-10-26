@@ -1,3 +1,4 @@
+import os
 import io
 import re
 import logging
@@ -18,7 +19,8 @@ from bot.keyboards import (
     get_single_session_keyboard,
     get_browser_status_keyboard,
     get_bet_amount_keyboard,
-    get_templates_menu_keyboard
+    get_templates_menu_keyboard,
+    get_apk_overlay_keyboard
 )
 from bot.templates import (
     DEFAULT_PREDICTION_TEMPLATE,
@@ -292,6 +294,176 @@ Send your new template message text below. (HTML tags & placeholders supported).
         await query.answer("All message templates reset to default!", show_alert=True)
         text = _get_admin_panel_text(user.first_name)
         await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=_get_main_keyboard())
+
+    # VIP APK & Floating HTML Overlay Settings Menu
+    elif data == "admin_apk_overlay":
+        overlay_on = db_manager.get_html_overlay_enabled()
+        auto_apk = db_manager.get_auto_send_apk()
+        apk_id = db_manager.get_apk_file_id()
+        apk_name = db_manager.get_apk_file_name()
+        apk_caption = db_manager.get_apk_caption()
+        has_custom_html = bool(db_manager.get_custom_html_template())
+
+        overlay_txt = "✅ ENABLED (Zayro VIP Hack Card floating on live screen)" if overlay_on else "❌ DISABLED"
+        apk_status_txt = f"📦 Configured: <code>{apk_name}</code>" if apk_id else "⚪ No APK File Uploaded"
+        auto_send_txt = "✅ ACTIVE (Auto-sends to channels on WIN)" if auto_apk else "❌ OFF (Manual only)"
+        html_status_txt = "🎨 Custom Uploaded HTML Active" if has_custom_html else "⚡ Built-in Zayro VIP Cyber Card Active"
+
+        text = f"""📱 <b>𝗩𝗜𝗣 𝗔𝗣𝗞 & 𝗙𝗟𝗢𝗔𝗧𝗜𝗡𝗚 𝗛𝗧𝗠𝗟 𝗢𝗩𝗘𝗥𝗟𝗔𝗬 𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🖼️ <b>Live Screen HTML Overlay:</b> {overlay_txt}
+📄 <b>Overlay Design:</b> {html_status_txt}
+
+📱 <b>Auto-Send APK on Win:</b> {auto_send_txt}
+📦 <b>Current APK File:</b> {apk_status_txt}
+📝 <b>APK Caption:</b> {apk_caption}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+• When <b>HTML Overlay</b> is ON, Playwright injects the open VIP hack prediction card on top of the live game and winning popup before taking screenshots!
+• When <b>Auto-Send APK</b> is ON, the APK document is instantly sent into the channels right after each WIN!"""
+
+        await query.edit_message_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=get_apk_overlay_keyboard(
+                overlay_enabled=overlay_on,
+                auto_send_apk=auto_apk,
+                has_apk=bool(apk_id),
+                apk_name=apk_name,
+                has_custom_html=has_custom_html
+            )
+        )
+
+    elif data == "toggle_overlay":
+        curr = db_manager.get_html_overlay_enabled()
+        new_val = not curr
+        db_manager.set_html_overlay_enabled(new_val)
+        status_txt = "HTML Overlay ENABLED! It will float on live screenshots." if new_val else "HTML Overlay DISABLED."
+        await query.answer(status_txt, show_alert=True)
+
+        overlay_on = new_val
+        auto_apk = db_manager.get_auto_send_apk()
+        apk_id = db_manager.get_apk_file_id()
+        apk_name = db_manager.get_apk_file_name()
+        apk_caption = db_manager.get_apk_caption()
+        has_custom_html = bool(db_manager.get_custom_html_template())
+        text = f"""📱 <b>𝗩𝗜𝗣 𝗔𝗣𝗞 & 𝗙𝗟𝗢𝗔𝗧𝗜𝗡𝗚 𝗛𝗧𝗠𝗟 𝗢𝗩𝗘𝗥𝗟𝗔𝗬 𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🖼️ <b>Live Screen HTML Overlay:</b> {"✅ ENABLED" if overlay_on else "❌ DISABLED"}
+📄 <b>Overlay Design:</b> {"🎨 Custom Uploaded HTML Active" if has_custom_html else "⚡ Built-in Zayro VIP Cyber Card Active"}
+
+📱 <b>Auto-Send APK on Win:</b> {"✅ ACTIVE" if auto_apk else "❌ OFF"}
+📦 <b>Current APK File:</b> {f"<code>{apk_name}</code>" if apk_id else "⚪ No APK File Uploaded"}
+📝 <b>APK Caption:</b> {apk_caption}"""
+        await query.edit_message_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=get_apk_overlay_keyboard(
+                overlay_enabled=overlay_on,
+                auto_send_apk=auto_apk,
+                has_apk=bool(apk_id),
+                apk_name=apk_name,
+                has_custom_html=has_custom_html
+            )
+        )
+
+    elif data == "toggle_apk_send":
+        curr = db_manager.get_auto_send_apk()
+        new_val = not curr
+        if new_val and not db_manager.get_apk_file_id():
+            await query.answer("⚠️ Please upload an APK file first before enabling auto-send!", show_alert=True)
+        else:
+            db_manager.set_auto_send_apk(new_val)
+            await query.answer(f"Auto-Send APK: {'ON' if new_val else 'OFF'}!", show_alert=True)
+
+        overlay_on = db_manager.get_html_overlay_enabled()
+        auto_apk = db_manager.get_auto_send_apk()
+        apk_id = db_manager.get_apk_file_id()
+        apk_name = db_manager.get_apk_file_name()
+        apk_caption = db_manager.get_apk_caption()
+        has_custom_html = bool(db_manager.get_custom_html_template())
+        text = f"""📱 <b>𝗩𝗜𝗣 𝗔𝗣𝗞 & 𝗙𝗟𝗢𝗔𝗧𝗜𝗡𝗚 𝗛𝗧𝗠𝗟 𝗢𝗩𝗘𝗥𝗟𝗔𝗬 𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🖼️ <b>Live Screen HTML Overlay:</b> {"✅ ENABLED" if overlay_on else "❌ DISABLED"}
+📄 <b>Overlay Design:</b> {"🎨 Custom Uploaded HTML Active" if has_custom_html else "⚡ Built-in Zayro VIP Cyber Card Active"}
+
+📱 <b>Auto-Send APK on Win:</b> {"✅ ACTIVE" if auto_apk else "❌ OFF"}
+📦 <b>Current APK File:</b> {f"<code>{apk_name}</code>" if apk_id else "⚪ No APK File Uploaded"}
+📝 <b>APK Caption:</b> {apk_caption}"""
+        await query.edit_message_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=get_apk_overlay_keyboard(
+                overlay_enabled=overlay_on,
+                auto_send_apk=auto_apk,
+                has_apk=bool(apk_id),
+                apk_name=apk_name,
+                has_custom_html=has_custom_html
+            )
+        )
+
+    elif data == "upload_apk_prompt":
+        admin_states[user.id] = {"state": "waiting_apk_file"}
+        prompt = """📦 <b>Upload Official VIP Mod APK File</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Please send the <b>.apk file</b> as a Telegram Document right now.
+The bot will cache it instantly and use it for automatic channel distribution on every WIN round!"""
+        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data="admin_apk_overlay")]]
+        await query.edit_message_text(prompt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data == "edit_apk_caption_prompt":
+        curr_caption = db_manager.get_apk_caption()
+        admin_states[user.id] = {"state": "waiting_apk_caption"}
+        prompt = f"""✏️ <b>Edit APK Delivery Caption</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Current Caption:</b>
+{curr_caption}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Send your new caption text below (Telegram HTML formatting supported):"""
+        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data="admin_apk_overlay")]]
+        await query.edit_message_text(prompt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data == "upload_html_prompt":
+        admin_states[user.id] = {"state": "waiting_html_file"}
+        prompt = """📄 <b>Upload Custom HTML Overlay File</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Send your custom <b>.html file</b> as a Telegram Document (or paste raw HTML code directly in chat).
+The template can use placeholders:
+• <code>{choice}</code> (BIG / SMALL)
+• <code>{issue}</code> (Period number)
+• <code>{confidence}</code> (Confidence %)
+• <code>{level}</code> (Martingale level)
+• <code>{number}</code> (Lucky ball number)"""
+        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data="admin_apk_overlay")]]
+        await query.edit_message_text(prompt, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data == "reset_html_overlay":
+        db_manager.set_custom_html_template(None)
+        await query.answer("Reset to default Zayro VIP Hack Overlay!", show_alert=True)
+        overlay_on = db_manager.get_html_overlay_enabled()
+        auto_apk = db_manager.get_auto_send_apk()
+        apk_id = db_manager.get_apk_file_id()
+        apk_name = db_manager.get_apk_file_name()
+        apk_caption = db_manager.get_apk_caption()
+        text = f"""📱 <b>𝗩𝗜𝗣 𝗔𝗣𝗞 & 𝗙𝗟𝗢𝗔𝗧𝗜𝗡𝗚 𝗛𝗧𝗠𝗟 𝗢𝗩𝗘𝗥𝗟𝗔𝗬 𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🖼️ <b>Live Screen HTML Overlay:</b> {"✅ ENABLED" if overlay_on else "❌ DISABLED"}
+📄 <b>Overlay Design:</b> ⚡ Built-in Zayro VIP Cyber Card Active
+
+📱 <b>Auto-Send APK on Win:</b> {"✅ ACTIVE" if auto_apk else "❌ OFF"}
+📦 <b>Current APK File:</b> {f"<code>{apk_name}</code>" if apk_id else "⚪ No APK File Uploaded"}
+📝 <b>APK Caption:</b> {apk_caption}"""
+        await query.edit_message_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=get_apk_overlay_keyboard(
+                overlay_enabled=overlay_on,
+                auto_send_apk=auto_apk,
+                has_apk=bool(apk_id),
+                apk_name=apk_name,
+                has_custom_html=False
+            )
+        )
 
     # 3. View & Manage Scheduled Sessions
     elif data == "admin_sessions":
@@ -696,13 +868,64 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(user.id):
         return
 
-    text = update.message.text.strip()
+    text = (update.message.text or "").strip()
+    doc = update.message.document
     state_info = admin_states.get(user.id)
     if not state_info:
         return
 
     current_state = state_info.get("state")
     cfg = db_manager.get_system_settings()
+
+    # Document upload handlers (APK & HTML)
+    if doc:
+        if current_state == "waiting_apk_file":
+            admin_states.pop(user.id, None)
+            file_name = doc.file_name or "ZayroVipHack.apk"
+            db_manager.set_apk_file(doc.file_id, file_name)
+
+            try:
+                os.makedirs("uploads", exist_ok=True)
+                tg_file = await doc.get_file()
+                local_path = os.path.join("uploads", file_name)
+                await tg_file.download_to_drive(local_path)
+            except Exception as e:
+                logger.warning(f"Could not download local copy of APK: {e}")
+
+            await update.message.reply_text(
+                f"✅ <b>Official VIP Mod APK Received & Configured!</b>\n"
+                f"📦 <b>File Name:</b> <code>{file_name}</code>\n"
+                f"🆔 <b>File ID:</b> <code>{doc.file_id}</code>\n\n"
+                f"Whenever a round is a <b>WIN</b>, this APK can be automatically sent to all active channels right after the winning screenshot!",
+                parse_mode=ParseMode.HTML,
+                reply_markup=_get_main_keyboard()
+            )
+            return
+
+        elif current_state == "waiting_html_file":
+            admin_states.pop(user.id, None)
+            try:
+                os.makedirs("uploads", exist_ok=True)
+                tg_file = await doc.get_file()
+                content_bytes = await tg_file.download_as_bytearray()
+                html_code = content_bytes.decode("utf-8", errors="ignore")
+                db_manager.set_custom_html_template(html_code)
+
+                local_path = os.path.join("uploads", "custom_overlay.html")
+                with open(local_path, "w", encoding="utf-8") as f:
+                    f.write(html_code)
+
+                await update.message.reply_text(
+                    f"✅ <b>Custom HTML Overlay Template Uploaded Successfully!</b>\n"
+                    f"📄 File: <code>{doc.file_name}</code> ({len(html_code)} chars)\n"
+                    f"The live game screen will now render this custom card during Playwright automation!",
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=_get_main_keyboard()
+                )
+            except Exception as e:
+                logger.error(f"Error saving HTML file: {e}")
+                await update.message.reply_text(f"❌ Failed to process HTML file: {e}")
+            return
 
     # Case 1: Channel ID received
     if current_state == "waiting_channel_id":
@@ -900,3 +1123,30 @@ Choose the Telegram Native Colored Button Style below:"""
                 parse_mode=ParseMode.HTML,
                 reply_markup=get_sessions_manage_keyboard(db_manager.get_sessions())
             )
+
+    # Case 11: APK Caption Text
+    elif current_state == "waiting_apk_caption":
+        admin_states.pop(user.id, None)
+        db_manager.set_apk_caption(text)
+        await update.message.reply_text(
+            f"✅ <b>APK Delivery Caption Updated Successfully!</b>\n\n<b>Preview:</b>\n{text}",
+            parse_mode=ParseMode.HTML,
+            reply_markup=_get_main_keyboard()
+        )
+
+    # Case 12: Custom HTML Text (Pasted code)
+    elif current_state == "waiting_html_file":
+        admin_states.pop(user.id, None)
+        db_manager.set_custom_html_template(text)
+        try:
+            os.makedirs("uploads", exist_ok=True)
+            with open(os.path.join("uploads", "custom_overlay.html"), "w", encoding="utf-8") as f:
+                f.write(text)
+        except Exception:
+            pass
+        await update.message.reply_text(
+            "✅ <b>Custom HTML Overlay Code Saved!</b>\n"
+            "The live game screen will now render this custom card during Playwright runs.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=_get_main_keyboard()
+        )

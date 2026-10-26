@@ -49,7 +49,7 @@ def main():
     # Register handlers
     app.add_handler(CommandHandler(["start", "admin"], start_handler))
     app.add_handler(CallbackQueryHandler(callback_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+    app.add_handler(MessageHandler((filters.TEXT | filters.Document.ALL) & ~filters.COMMAND, message_handler))
 
     # Run Telegram Bot polling
     app.run_polling(drop_pending_updates=True)

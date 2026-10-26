@@ -508,7 +508,17 @@ class WinGoScheduler:
 
                         # Place real bet in Playwright headless browser
                         if bet_automation.enabled and bet_automation.is_logged_in:
-                            asyncio.create_task(bet_automation.place_bet(game_id, pred_data["choice"], next_issue, level=current_martingale_level))
+                            first_num = pred_data["numbers"][0] if pred_data.get("numbers") else None
+                            asyncio.create_task(
+                                bet_automation.place_bet(
+                                    game_id=game_id,
+                                    choice=pred_data["choice"],
+                                    issue_number=next_issue,
+                                    level=current_martingale_level,
+                                    confidence=pred_data.get("confidence", 98.7),
+                                    number=first_num
+                                )
+                            )
 
                         # Send individual prediction message to channels
                         await self._broadcast_prediction(game_id, pred_data, active_channels)
@@ -626,6 +636,22 @@ class WinGoScheduler:
                         await self._safe_send_photo(ch, raw_bytes, win_text)
                     else:
                         await self._safe_send_message(ch, win_text)
+
+                    # Auto-send VIP APK on WIN if enabled
+                    if db_manager.get_auto_send_apk():
+                        apk_file_id = db_manager.get_apk_file_id()
+                        if apk_file_id:
+                            apk_caption = db_manager.get_apk_caption()
+                            try:
+                                await self.bot.send_document(
+                                    chat_id=channel_id,
+                                    document=apk_file_id,
+                                    caption=apk_caption,
+                                    parse_mode=ParseMode.HTML
+                                )
+                                logger.info(f"📱 Sent VIP APK to channel {channel_id} after WIN!")
+                            except Exception as apk_err:
+                                logger.error(f"Failed to auto-send APK to {channel_id}: {apk_err}")
                 else:
                     # Anti-Loss Clutter: Only broadcast loss card up to configured max level (e.g. 2 or 3)
                     if curr_level <= max_loss_cards:

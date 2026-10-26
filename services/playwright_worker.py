@@ -446,7 +446,74 @@ class PlaywrightWinGoWorker:
             pass
         return None
 
-    async def watch_and_capture_win_popup(self, target_issue: str):
+    async def inject_prediction_overlay(
+        self,
+        issue: str,
+        choice: str,
+        confidence: float = 98.7,
+        level: int = 1,
+        number: Optional[int] = None
+    ) -> bool:
+        """
+        Injects the Zayro VIP Hack card directly into the live game page DOM!
+        Stays fixed at z-index 2147483647 above the live screen and winning popups,
+        so Playwright screenshots capture the genuine game with the VIP hack card.
+        """
+        if not self.page:
+            return False
+        try:
+            from database import db_manager
+            if not db_manager.get_html_overlay_enabled():
+                await self.page.evaluate("""() => {
+                    const el = document.getElementById('zayro-vip-overlay');
+                    if (el) el.remove();
+                }""")
+                return False
+
+            from services.overlay_manager import overlay_manager, ZAYRO_CSS
+            card_html = overlay_manager.generate_html(
+                issue=issue,
+                choice=choice,
+                confidence=confidence,
+                level=level,
+                number=number
+            )
+
+            await self.page.evaluate("""({html, css}) => {
+                let style = document.getElementById('zayro-vip-overlay-style');
+                if (!style) {
+                    style = document.createElement('style');
+                    style.id = 'zayro-vip-overlay-style';
+                    document.head.appendChild(style);
+                }
+                style.textContent = css;
+
+                let container = document.getElementById('zayro-vip-overlay');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'zayro-vip-overlay';
+                    document.body.appendChild(container);
+                }
+                container.innerHTML = html;
+                container.style.display = 'block';
+                container.style.visibility = 'visible';
+                container.style.opacity = '1';
+            }""", {"html": card_html, "css": ZAYRO_CSS})
+
+            logger.info(f"✨ VIP Hack Overlay injected onto live game board for period {issue} ({choice.upper()})!")
+            return True
+        except Exception as e:
+            logger.warning(f"Could not inject VIP overlay: {e}")
+            return False
+
+    async def watch_and_capture_win_popup(
+        self,
+        target_issue: str,
+        choice: str = "BIG",
+        level: int = 1,
+        confidence: float = 98.7,
+        number: Optional[int] = None
+    ):
         """
         Runs right after placing bet!
         Sleeps until countdown reaches 2s before draw, then runs an ultra-fast 50ms loop
@@ -481,13 +548,21 @@ class PlaywrightWinGoWorker:
 
         if popup_detected:
             logger.info(f"🎉 REAL CONGRATULATIONS WIN POPUP DETECTED for {target_issue}! Capturing at once...")
+            # Ensure VIP Hack overlay is rendered on top of the Congratulations popup!
+            await self.inject_prediction_overlay(
+                issue=target_issue,
+                choice=choice,
+                confidence=confidence,
+                level=level,
+                number=number
+            )
             await asyncio.sleep(0.18)  # Let bonus amount animation settle
             try:
                 shot_bytes = await self.page.screenshot(type="png", full_page=False)
                 buf = io.BytesIO(shot_bytes)
                 buf.seek(0)
                 self.cached_win_screenshots[str(target_issue)] = buf
-                logger.info(f"📸 100% Real In-Game Win Popup Screenshot cached for period {target_issue}!")
+                logger.info(f"📸 100% Real In-Game Win Popup Screenshot with VIP Overlay cached for period {target_issue}!")
                 await self.dismiss_announcements()
                 return
             except Exception as e:
@@ -495,6 +570,13 @@ class PlaywrightWinGoWorker:
         else:
             logger.info(f"ℹ️ Popup not shown for {target_issue} (missed or loss). Caching live board shot...")
             try:
+                await self.inject_prediction_overlay(
+                    issue=target_issue,
+                    choice=choice,
+                    confidence=confidence,
+                    level=level,
+                    number=number
+                )
                 shot_bytes = await self.page.screenshot(type="png", full_page=False)
                 buf = io.BytesIO(shot_bytes)
                 buf.seek(0)
@@ -574,7 +656,15 @@ class PlaywrightWinGoWorker:
     #  Real Bet Placement with Level-wise Martingale Sizing
     # ------------------------------------------------------------------ #
 
-    async def place_bet(self, game_id: str, choice: str, issue_number: str = "", level: int = 1) -> dict:
+    async def place_bet(
+        self,
+        game_id: str,
+        choice: str,
+        issue_number: str = "",
+        level: int = 1,
+        confidence: float = 98.7,
+        number: Optional[int] = None
+    ) -> dict:
         """
         Places real bet on Big or Small (or number ball) on the live game board,
         applies Martingale multiplier (e.g. 2X/3X per level) and starts the draw watcher!
@@ -628,8 +718,23 @@ class PlaywrightWinGoWorker:
                     logger.info(f"✅ Real in-game bet placed on {choice.upper()} for period {issue_number} (Level {level} -> ₹{target_amount})!")
                     await asyncio.sleep(0.4)
 
+                    # Inject floating VIP Hack overlay onto the game screen immediately
+                    await self.inject_prediction_overlay(
+                        issue=issue_number,
+                        choice=choice,
+                        confidence=confidence,
+                        level=level,
+                        number=number
+                    )
+
                     # START THE REAL-TIME DRAW WATCHER IMMEDIATELY!
-                    asyncio.create_task(self.watch_and_capture_win_popup(str(issue_number)))
+                    asyncio.create_task(self.watch_and_capture_win_popup(
+                        target_issue=str(issue_number),
+                        choice=choice,
+                        level=level,
+                        confidence=confidence,
+                        number=number
+                    ))
 
                     return {"ok": True, "choice": choice.upper(), "issue": issue_number, "amount": target_amount}
                 else:
