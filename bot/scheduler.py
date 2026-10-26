@@ -58,9 +58,12 @@ class WinGoScheduler:
         self.running = True
         logger.info("🚀 Starting WinGo Multi-Game Schedulers with Session Controller...")
 
-        # Initialize Playwright real game automation in background
+        # Initialize Playwright real game automation in background after Telegram polling is active
         if config.DEMO_AUTO_BET:
-            asyncio.create_task(bet_automation.initialize())
+            async def _bg_playwright_init():
+                await asyncio.sleep(4.0)
+                await bet_automation.initialize()
+            asyncio.create_task(_bg_playwright_init())
 
         # Start game prediction loops
         for game_id in config.WINGO_GAMES.keys():

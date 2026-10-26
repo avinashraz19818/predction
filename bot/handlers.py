@@ -101,7 +101,12 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = _get_admin_panel_text(user.first_name)
         reply_markup = _get_main_keyboard()
         if update.message:
-            await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
+            try:
+                await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
+            except Exception as tg_err:
+                logger.warning(f"HTML reply failed ({tg_err}), falling back to plain text...")
+                clean_plain = re.sub(r"<[^>]+>", "", text)
+                await update.message.reply_text(clean_plain, reply_markup=reply_markup)
             logger.info(f"✅ Admin panel menu delivered to user {user.id}")
     except Exception as e:
         logger.error(f"Error rendering admin panel: {e}", exc_info=True)

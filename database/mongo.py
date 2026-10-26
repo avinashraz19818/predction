@@ -34,14 +34,17 @@ class DatabaseManager:
             "tpl_good_night": None,
         }
         self._channel_loss_messages = {}
+        self._last_settings_fetch = 0
         self.connect()
 
     def connect(self):
         try:
             self.client = MongoClient(
                 config.MONGO_URI,
-                serverSelectionTimeoutMS=5000,
-                connectTimeoutMS=5000
+                serverSelectionTimeoutMS=4000,
+                connectTimeoutMS=4000,
+                socketTimeoutMS=5000,
+                tlsAllowInvalidCertificates=True
             )
             self.db = self.client[config.MONGO_DB_NAME]
             # Test connection
@@ -129,20 +132,25 @@ class DatabaseManager:
 
     # ================= SYSTEM SETTINGS & SESSION SCHEDULE =================
 
-    def get_system_settings(self) -> dict:
-        if self.connected:
+    def get_system_settings(self, force_refresh: bool = False) -> dict:
+        import time
+        now = time.time()
+        if self.connected and (force_refresh or not self._memory_settings or (now - getattr(self, "_last_settings_fetch", 0) > 15)):
             try:
                 doc = self.db.settings.find_one({"key": "system_config"})
                 if doc:
                     doc.pop("_id", None)
                     self._memory_settings = doc
+                    self._last_settings_fetch = now
                     return doc
             except Exception as e:
                 logger.error(f"Error getting settings from Mongo: {e}")
         return self._memory_settings
 
     def update_system_settings(self, updates: dict) -> dict:
+        import time
         self._memory_settings.update(updates)
+        self._last_settings_fetch = time.time()
         updates["updated_at"] = datetime.utcnow()
         if self.connected:
             try:
