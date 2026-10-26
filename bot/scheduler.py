@@ -693,20 +693,22 @@ class WinGoScheduler:
                         await self._safe_send_message(ch, win_text)
 
                     # Auto-send VIP APK on WIN if enabled
-                    if db_manager.get_auto_send_apk():
-                        apk_file_id = db_manager.get_apk_file_id()
-                        if apk_file_id:
-                            apk_caption = db_manager.get_apk_caption()
-                            try:
-                                await self.bot.send_document(
-                                    chat_id=channel_id,
-                                    document=apk_file_id,
-                                    caption=apk_caption,
-                                    parse_mode=ParseMode.HTML
-                                )
-                                logger.info(f"📱 Sent VIP APK to channel {channel_id} after WIN!")
-                            except Exception as apk_err:
-                                logger.error(f"Failed to auto-send APK to {channel_id}: {apk_err}")
+                    auto_send = db_manager.get_auto_send_apk()
+                    apk_file_id = db_manager.get_apk_file_id()
+                    logger.info(f"📱 Checking auto-send APK: enabled={auto_send}, has_file={bool(apk_file_id)}")
+                    if auto_send and apk_file_id:
+                        apk_caption = db_manager.get_apk_caption()
+                        try:
+                            await asyncio.sleep(1.0)
+                            await self.bot.send_document(
+                                chat_id=channel_id,
+                                document=apk_file_id,
+                                caption=apk_caption,
+                                parse_mode=ParseMode.HTML
+                            )
+                            logger.info(f"📱 Sent VIP APK to channel {channel_id} after WIN!")
+                        except Exception as apk_err:
+                            logger.error(f"Failed to auto-send APK to {channel_id}: {apk_err}", exc_info=True)
                 else:
                     # Anti-Loss Clutter: Only broadcast loss card up to configured max level (e.g. 2 or 3)
                     if curr_level <= max_loss_cards:

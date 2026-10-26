@@ -520,83 +520,6 @@ ZAYRO_CSS = """
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
   cursor: pointer !important;
 }
-
-/* FLOATING MINI HACK TOGGLE BUTTON */
-#miniBtn {
-  position: fixed !important;
-  top: 14px !important;
-  right: 14px !important;
-  width: 46px !important;
-  height: 46px !important;
-  border-radius: 50% !important;
-  background: radial-gradient(circle at 35% 30%, #ff1a53 0%, #a00024 55%, #40000e 100%) !important;
-  border: 1.5px solid #ff4d79 !important;
-  box-shadow: 
-    0 0 16px rgba(255, 0, 60, 0.65),
-    inset 0 2px 4px rgba(255, 255, 255, 0.5),
-    inset 0 -3px 6px rgba(0, 0, 0, 0.85) !important;
-  z-index: 2147483647 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  pointer-events: none !important;
-}
-
-#miniBtn .mb-ring {
-  position: absolute !important;
-  inset: -3px !important;
-  width: calc(100% + 6px) !important;
-  height: calc(100% + 6px) !important;
-  pointer-events: none !important;
-  animation: zayroCoinSpinRing 7s linear infinite !important;
-}
-#miniBtn .mb-ring circle.r1 {
-  fill: none !important;
-  stroke: #ffd000 !important;
-  stroke-width: 1 !important;
-  stroke-dasharray: 4, 3 !important;
-}
-#miniBtn .mb-ring circle.r2 {
-  fill: none !important;
-  stroke: #ff003c !important;
-  stroke-width: 0.8 !important;
-  stroke-dasharray: 8, 4 !important;
-}
-@keyframes zayroCoinSpinRing {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-#miniBtn .mb-center-bolt {
-  position: relative !important;
-  width: 20px !important;
-  height: 20px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-#miniBtn .bolt-svg {
-  width: 100% !important;
-  height: 100% !important;
-  filter: drop-shadow(0 0 5px rgba(255, 208, 0, 0.9)) !important;
-}
-
-#miniBtn .mb-counter-badge {
-  position: absolute !important;
-  top: -2px !important;
-  right: -2px !important;
-  background: #ffd000 !important;
-  color: #000000 !important;
-  font-size: 7.5px !important;
-  font-weight: 900 !important;
-  width: 14px !important;
-  height: 14px !important;
-  border-radius: 50% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-shadow: 0 0 5px rgba(255, 208, 0, 0.8) !important;
-}
 """
 
 
@@ -805,20 +728,6 @@ class OverlayManager:
               </button>
             </div>
           </div>
-        </div>
-
-        <!-- FLOATING HACK MINI BUTTON -->
-        <div id="miniBtn">
-          <svg class="mb-ring" viewBox="0 0 66 66">
-            <circle class="r1" cx="33" cy="33" r="28"/>
-            <circle class="r2" cx="33" cy="33" r="23"/>
-          </svg>
-          <div class="mb-center-bolt">
-            <svg class="bolt-svg" viewBox="0 0 24 24" fill="none">
-              <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" fill="#ffd000" stroke="#ffffff" stroke-width="1.2"/>
-            </svg>
-          </div>
-          <div class="mb-counter-badge">9K</div>
         </div>
         """
         return html

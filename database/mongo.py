@@ -288,7 +288,10 @@ class DatabaseManager:
 
     def get_auto_send_apk(self) -> bool:
         cfg = self.get_system_settings()
-        return bool(cfg.get("auto_send_apk", False))
+        val = cfg.get("auto_send_apk")
+        if val is None:
+            return bool(cfg.get("apk_file_id"))
+        return bool(val)
 
     def set_auto_send_apk(self, enabled: bool) -> bool:
         self.update_system_settings({"auto_send_apk": bool(enabled)})
@@ -301,7 +304,8 @@ class DatabaseManager:
     def set_apk_file(self, file_id: str, file_name: str = "ZayroVipHack.apk"):
         self.update_system_settings({
             "apk_file_id": str(file_id).strip(),
-            "apk_file_name": str(file_name).strip()
+            "apk_file_name": str(file_name).strip(),
+            "auto_send_apk": True
         })
 
     def get_apk_file_name(self) -> str:
