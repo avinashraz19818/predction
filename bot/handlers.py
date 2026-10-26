@@ -333,6 +333,7 @@ Send your new template message text below. (HTML tags & placeholders supported).
         apk_status_txt = f"📦 Configured: <code>{apk_name}</code>" if apk_id else "⚪ No APK File Uploaded"
         auto_send_txt = "✅ ACTIVE (Auto-sends to channels on WIN)" if auto_apk else "❌ OFF (Manual only)"
         html_status_txt = "🎨 Custom Uploaded HTML Active" if has_custom_html else "⚡ Built-in Zayro VIP Cyber Card Active"
+        caption_preview = f"\n{apk_caption}" if apk_caption else " <i>(None - clean file delivery)</i>"
 
         text = f"""📱 <b>𝗩𝗜𝗣 𝗔𝗣𝗞 & 𝗙𝗟𝗢𝗔𝗧𝗜𝗡𝗚 𝗛𝗧𝗠𝗟 𝗢𝗩𝗘𝗥𝗟𝗔𝗬 𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦</b>
 ━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -341,7 +342,7 @@ Send your new template message text below. (HTML tags & placeholders supported).
 
 📱 <b>Auto-Send APK on Win:</b> {auto_send_txt}
 📦 <b>Current APK File:</b> {apk_status_txt}
-📝 <b>APK Caption:</b> {apk_caption}
+📝 <b>APK Caption:</b>{caption_preview}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 • When <b>HTML Overlay</b> is ON, Playwright injects the open VIP hack prediction card on top of the live game and winning popup before taking screenshots!
 • When <b>Auto-Send APK</b> is ON, the APK document is instantly sent into the channels right after each WIN!"""
@@ -896,18 +897,47 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (update.message.text or "").strip()
     doc = update.message.document
     state_info = admin_states.get(user.id)
-    if not state_info:
-        return
-
-    current_state = state_info.get("state")
+    current_state = state_info.get("state") if state_info else None
     cfg = db_manager.get_system_settings()
 
     # Document upload handlers (APK & HTML)
+    if doc and doc.file_name and doc.file_name.lower().endswith(".apk"):
+        admin_states.pop(user.id, None)
+        file_name = doc.file_name or "ZayroVipHack.apk"
+        # Capture custom caption if provided with document
+        custom_caption = (update.message.caption_html or update.message.caption or "").strip()
+        db_manager.set_apk_file(doc.file_id, file_name, caption=custom_caption or None)
+
+        try:
+            os.makedirs("uploads", exist_ok=True)
+            tg_file = await doc.get_file()
+            local_path = os.path.join("uploads", file_name)
+            await tg_file.download_to_drive(local_path)
+        except Exception as e:
+            logger.warning(f"Could not download local copy of APK: {e}")
+
+        caption_info = f"\n📝 <b>Attached Caption:</b>\n{custom_caption}" if custom_caption else "\n📝 <b>Caption:</b> <i>(No caption attached - will use saved caption or send clean document)</i>"
+        await update.message.reply_text(
+            f"✅ <b>Official VIP Mod APK Received & Configured!</b>\n"
+            f"📦 <b>File Name:</b> <code>{file_name}</code>\n"
+            f"🆔 <b>File ID:</b> <code>{doc.file_id}</code>\n"
+            f"⚡ <b>Auto-Send on WIN:</b> Active ✅{caption_info}\n\n"
+            f"Whenever a round is a <b>WIN</b>, this APK document with its exact caption will be automatically sent to all active channels right after the winning screenshot!",
+            parse_mode=ParseMode.HTML,
+            reply_markup=_get_main_keyboard()
+        )
+        return
+
+    if not state_info:
+        return
+
+    # Document upload handlers for HTML
     if doc:
         if current_state == "waiting_apk_file":
             admin_states.pop(user.id, None)
             file_name = doc.file_name or "ZayroVipHack.apk"
-            db_manager.set_apk_file(doc.file_id, file_name)
+            custom_caption = (update.message.caption_html or update.message.caption or "").strip()
+            db_manager.set_apk_file(doc.file_id, file_name, caption=custom_caption or None)
 
             try:
                 os.makedirs("uploads", exist_ok=True)
@@ -917,11 +947,13 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.warning(f"Could not download local copy of APK: {e}")
 
+            caption_info = f"\n📝 <b>Attached Caption:</b>\n{custom_caption}" if custom_caption else ""
             await update.message.reply_text(
                 f"✅ <b>Official VIP Mod APK Received & Configured!</b>\n"
                 f"📦 <b>File Name:</b> <code>{file_name}</code>\n"
-                f"🆔 <b>File ID:</b> <code>{doc.file_id}</code>\n\n"
-                f"Whenever a round is a <b>WIN</b>, this APK can be automatically sent to all active channels right after the winning screenshot!",
+                f"🆔 <b>File ID:</b> <code>{doc.file_id}</code>\n"
+                f"⚡ <b>Auto-Send on WIN:</b> Active ✅{caption_info}\n\n"
+                f"Whenever a round is a <b>WIN</b>, this APK will be automatically sent to all active channels right after the winning screenshot!",
                 parse_mode=ParseMode.HTML,
                 reply_markup=_get_main_keyboard()
             )
@@ -1152,12 +1184,16 @@ Choose the Telegram Native Colored Button Style below:"""
     # Case 11: APK Caption Text
     elif current_state == "waiting_apk_caption":
         admin_states.pop(user.id, None)
-        db_manager.set_apk_caption(text)
-        await update.message.reply_text(
-            f"✅ <b>APK Delivery Caption Updated Successfully!</b>\n\n<b>Preview:</b>\n{text}",
-            parse_mode=ParseMode.HTML,
-            reply_markup=_get_main_keyboard()
-        )
+        caption_text = (update.message.text_html or update.message.text or "").strip()
+        if caption_text:
+            db_manager.set_apk_caption(caption_text)
+            await update.message.reply_text(
+                f"✅ <b>APK Delivery Caption Updated Successfully!</b>\n\n<b>Preview:</b>\n{caption_text}",
+                parse_mode=ParseMode.HTML,
+                reply_markup=_get_main_keyboard()
+            )
+        else:
+            await update.message.reply_text("❌ Caption cannot be empty.", reply_markup=_get_main_keyboard())
 
     # Case 12: Custom HTML Text (Pasted code)
     elif current_state == "waiting_html_file":

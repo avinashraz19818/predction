@@ -547,6 +547,20 @@ class OverlayManager:
                     return cls._ball_cache[n]
             except Exception:
                 pass
+
+        # Robust Fallback: extract base64 directly from zayro.html
+        zayro_file = os.path.join(base_dir, "zayro.html")
+        if os.path.exists(zayro_file):
+            try:
+                import re
+                with open(zayro_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+                m = re.search(rf'id=["\']rc_{n}["\'][^>]*background-image:url\([\'"]?(data:image/[^\'"]+?)[\'"]?\)', content)
+                if m:
+                    cls._ball_cache[n] = m.group(1).strip()
+                    return cls._ball_cache[n]
+            except Exception:
+                pass
         return ""
 
     @staticmethod

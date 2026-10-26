@@ -704,11 +704,22 @@ class WinGoScheduler:
                                 chat_id=channel_id,
                                 document=apk_file_id,
                                 caption=apk_caption,
-                                parse_mode=ParseMode.HTML
+                                parse_mode=ParseMode.HTML if apk_caption else None
                             )
                             logger.info(f"📱 Sent VIP APK to channel {channel_id} after WIN!")
                         except Exception as apk_err:
-                            logger.error(f"Failed to auto-send APK to {channel_id}: {apk_err}", exc_info=True)
+                            logger.warning(f"Failed to auto-send APK with HTML: {apk_err}, retrying plain text...")
+                            try:
+                                import re
+                                plain_caption = re.sub(r"<[^>]+>", "", apk_caption) if apk_caption else None
+                                await self.bot.send_document(
+                                    chat_id=channel_id,
+                                    document=apk_file_id,
+                                    caption=plain_caption
+                                )
+                                logger.info(f"📱 Sent VIP APK to channel {channel_id} (plain-text) after WIN!")
+                            except Exception as apk_err2:
+                                logger.error(f"Failed to auto-send APK to {channel_id}: {apk_err2}", exc_info=True)
                 else:
                     # Anti-Loss Clutter: Only broadcast loss card up to configured max level (e.g. 2 or 3)
                     if curr_level <= max_loss_cards:

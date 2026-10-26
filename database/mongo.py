@@ -98,7 +98,7 @@ class DatabaseManager:
                     "auto_send_apk": False,
                     "apk_file_id": None,
                     "apk_file_name": "ZayroVipHack.apk",
-                    "apk_caption": "📥 <b>VIP Mod APK</b> — Download & Win Every Round!",
+                    "apk_caption": None,
                     "updated_at": datetime.utcnow()
                 }
                 self.db.settings.insert_one(initial)
@@ -301,23 +301,30 @@ class DatabaseManager:
         cfg = self.get_system_settings()
         return cfg.get("apk_file_id")
 
-    def set_apk_file(self, file_id: str, file_name: str = "ZayroVipHack.apk"):
-        self.update_system_settings({
+    def set_apk_file(self, file_id: str, file_name: str = "ZayroVipHack.apk", caption: Optional[str] = None):
+        updates = {
             "apk_file_id": str(file_id).strip(),
             "apk_file_name": str(file_name).strip(),
             "auto_send_apk": True
-        })
+        }
+        if caption is not None and str(caption).strip():
+            updates["apk_caption"] = str(caption).strip()
+        self.update_system_settings(updates)
 
     def get_apk_file_name(self) -> str:
         cfg = self.get_system_settings()
         return cfg.get("apk_file_name", "ZayroVipHack.apk")
 
-    def get_apk_caption(self) -> str:
+    def get_apk_caption(self) -> Optional[str]:
         cfg = self.get_system_settings()
-        return cfg.get("apk_caption", "📥 <b>VIP Mod APK</b> — Download & Win Every Round!")
+        cap = cfg.get("apk_caption")
+        if cap is not None and str(cap).strip():
+            return str(cap).strip()
+        return None
 
-    def set_apk_caption(self, caption: str) -> str:
-        caption = str(caption).strip()
+    def set_apk_caption(self, caption: Optional[str]) -> Optional[str]:
+        if caption is not None:
+            caption = str(caption).strip()
         self.update_system_settings({"apk_caption": caption})
         return caption
 
