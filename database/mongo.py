@@ -99,6 +99,7 @@ class DatabaseManager:
                     "apk_file_id": None,
                     "apk_file_name": "ZayroVipHack.apk",
                     "apk_caption": None,
+                    "userbot_session": getattr(config, "USERBOT_SESSION", None) or None,
                     "updated_at": datetime.utcnow()
                 }
                 self.db.settings.insert_one(initial)
@@ -327,6 +328,18 @@ class DatabaseManager:
             caption = str(caption).strip()
         self.update_system_settings({"apk_caption": caption})
         return caption
+
+    def get_userbot_session(self) -> Optional[str]:
+        cfg = self.get_system_settings()
+        sess = cfg.get("userbot_session")
+        if sess and str(sess).strip():
+            return str(sess).strip()
+        from_cfg = getattr(config, "USERBOT_SESSION", "")
+        return from_cfg.strip() if from_cfg else None
+
+    def set_userbot_session(self, session_str: Optional[str]):
+        val = str(session_str).strip() if session_str else None
+        self.update_system_settings({"userbot_session": val})
 
     def get_sessions(self) -> list:
         cfg = self.get_system_settings()
@@ -584,3 +597,5 @@ class DatabaseManager:
                 logger.error(f"Error saving prediction doc: {e}")
 
 db_manager = DatabaseManager()
+db = db_manager
+

@@ -74,7 +74,8 @@ def get_admin_main_keyboard(
             InlineKeyboardButton(f"🎮 {browser_badge}", callback_data="admin_browser_status")
         ],
         [
-            InlineKeyboardButton("📱 VIP APK & HTML Overlay", callback_data="admin_apk_overlay")
+            InlineKeyboardButton("📱 VIP APK & HTML Overlay", callback_data="admin_apk_overlay"),
+            InlineKeyboardButton("🔐 Telegram Userbot", callback_data="admin_userbot")
         ],
         [
             InlineKeyboardButton("📢 Manage Channels", callback_data="admin_channels"),
@@ -330,3 +331,27 @@ def get_button_style_select_keyboard(channel_id: str) -> InlineKeyboardMarkup:
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
+
+def get_userbot_keyboard(is_active: bool) -> InlineKeyboardMarkup:
+    """Menu for Telegram Userbot Management"""
+    if is_active:
+        keyboard = [
+            [
+                InlineKeyboardButton("🚪 Logout Userbot", callback_data="userbot_logout"),
+                InlineKeyboardButton("🔄 Change / Re-login", callback_data="userbot_start_login")
+            ],
+            [
+                InlineKeyboardButton("⬅️ Back to Admin Panel", callback_data="admin_main")
+            ]
+        ]
+    else:
+        keyboard = [
+            [
+                InlineKeyboardButton("📱 Connect Account (/login)", callback_data="userbot_start_login")
+            ],
+            [
+                InlineKeyboardButton("⬅️ Back to Admin Panel", callback_data="admin_main")
+            ]
+        ]
+    return InlineKeyboardMarkup(keyboard)
+

@@ -5,8 +5,17 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 from telegram.request import HTTPXRequest
 
 import config
-from bot.handlers import start_handler, callback_handler, message_handler
+from bot.handlers import (
+    start_handler,
+    callback_handler,
+    message_handler,
+    login_handler,
+    userbot_handler,
+    logout_userbot_handler,
+    cancel_handler
+)
 from bot.scheduler import WinGoScheduler
+from services.userbot_manager import userbot_manager
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -17,17 +26,29 @@ logger = logging.getLogger("WinGoBot")
 scheduler_instance = None
 
 async def post_init(application: Application):
-    """Called after application is initialized, starts background scheduler"""
+    """Called after application is initialized, starts background scheduler and userbot"""
     global scheduler_instance
     scheduler_instance = WinGoScheduler(application.bot)
     await scheduler_instance.start()
     logger.info("✅ WinGo Multi-Game Scheduler started successfully!")
+
+    # Auto-start Telegram Userbot if session is configured
+    try:
+        started = await userbot_manager.start()
+        if started:
+            logger.info("✅ Telegram Userbot client initialized for animated emojis!")
+    except Exception as ue:
+        logger.warning(f"⚠️ Userbot auto-start notice: {ue}")
 
 async def post_shutdown(application: Application):
     """Called during graceful shutdown"""
     global scheduler_instance
     if scheduler_instance:
         await scheduler_instance.stop()
+    try:
+        await userbot_manager.stop()
+    except Exception:
+        pass
     logger.info("🛑 Bot shutdown complete.")
 
 def main():
@@ -66,6 +87,10 @@ def main():
 
     # Register handlers
     app.add_handler(CommandHandler(["start", "admin"], start_handler))
+    app.add_handler(CommandHandler("login", login_handler))
+    app.add_handler(CommandHandler("userbot", userbot_handler))
+    app.add_handler(CommandHandler("logout_userbot", logout_userbot_handler))
+    app.add_handler(CommandHandler("cancel", cancel_handler))
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler((filters.TEXT | filters.Document.ALL) & ~filters.COMMAND, message_handler))
 

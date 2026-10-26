@@ -2,6 +2,7 @@ import os
 import io
 import re
 import html
+import time
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -10,6 +11,7 @@ from telegram.constants import ParseMode
 import config
 from database import db_manager
 from services.bet_automation import bet_automation
+from services.userbot_manager import userbot_manager
 from bot.keyboards import (
     get_admin_main_keyboard,
     get_game_select_keyboard,
@@ -21,7 +23,8 @@ from bot.keyboards import (
     get_browser_status_keyboard,
     get_bet_amount_keyboard,
     get_templates_menu_keyboard,
-    get_apk_overlay_keyboard
+    get_apk_overlay_keyboard,
+    get_userbot_keyboard
 )
 from bot.templates import (
     DEFAULT_PREDICTION_TEMPLATE,
@@ -57,6 +60,12 @@ def _get_admin_panel_text(user_first_name: str) -> str:
     clean_loss = "ENABLED" if db_manager.get_auto_clean_loss() else "DISABLED"
     safe_name = html.escape(user_first_name or "Admin")
 
+    ub_status = userbot_manager.get_status()
+    if ub_status["active"] and ub_status["me"]:
+        ub_badge = "🟢 Connected (Animated Emojis Active)"
+    else:
+        ub_badge = "⚪ Inactive (/login to connect)"
+
     return f"""👑 <b>𝗪𝗜𝗡𝗚𝗢 𝗔𝗜 𝗣𝗥𝗘𝗗𝗜𝗖𝗧𝗜𝗢𝗡 𝗔𝗗𝗠𝗜𝗡 𝗣𝗔𝗡𝗘𝗟</b> 👑
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 👋 Welcome, <b>{safe_name}</b>!
@@ -65,9 +74,42 @@ def _get_admin_panel_text(user_first_name: str) -> str:
 🛡️ <b>Max Public Loss Cards:</b> <b>Level {max_loss}</b> (Anti-Loss Protection)
 🧹 <b>Auto-Delete Loss on Win:</b> <code>{clean_loss}</code>
 🎮 <b>Automation Status:</b> <code>{browser_status}</code>
+🔐 <b>Telegram Userbot:</b> <code>{ub_badge}</code>
 🤖 <b>Engine:</b> WinGo 30s, 1M, 3M, 5M (Multi-Game)
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 Select an option from the menu below:"""
+
+def _get_userbot_panel_text() -> str:
+    status = userbot_manager.get_status()
+    if status["active"] and status["me"]:
+        me = status["me"]
+        prem_badge = "✅ Active (100% Animated Custom Emojis Enabled)" if me.get("is_premium") else "⚠️ Regular (No Telegram Premium detected)"
+        user_handle = f"@{me.get('username')}" if me.get('username') else "No username"
+        return f"""👑 <b>𝗧𝗘𝗟𝗘𝗚𝗥𝗔𝗠 𝗨𝗦𝗘𝗥𝗕𝗢𝗧 𝗦𝗧𝗔𝗧𝗨𝗦: 𝗔𝗖𝗧𝗜𝗩𝗘 🟢</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 <b>Account Name:</b> <code>{html.escape(me.get('first_name', '') + ' ' + me.get('last_name', ''))}</code>
+🔖 <b>Username:</b> {user_handle}
+🆔 <b>User ID:</b> <code>{me.get('id', '')}</code>
+⭐ <b>Telegram Premium:</b> {prem_badge}
+━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 <b>Live Channel Delivery:</b>
+Active channels par sabhi predictions, win alerts, aur screenshots aapke is Telegram Premium session se dispatch honge taaki <b>saare animated emojis 100% smoothly animate</b> karein!
+
+<b>Commands:</b>
+• <code>/login</code> — Dusra account connect / switch karne ke liye
+• <code>/logout_userbot</code> — Userbot disconnect karne ke liye"""
+    else:
+        return """👑 <b>𝗧𝗘𝗟𝗘𝗚𝗥𝗔𝗠 𝗨𝗦𝗘𝗥𝗕𝗢𝗧 𝗦𝗧𝗔𝗧𝗨𝗦: 𝗜𝗡𝗔𝗖𝗧𝗜𝗩𝗘 ⚪</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Telegram channel me animated emojis post karne ke liye apna Telegram account connect karein.
+
+<b>✨ Key Benefits:</b>
+• Sabhi WinGo Signals & Win Alerts me <b>100% Animated Premium Emojis</b> display honge!
+• Fast & direct delivery via Telegram MTProto.
+• Session encrypted & securely saved in MongoDB and local .env.
+
+👉 <b>Connect karne ke liye niche button dabayein ya <code>/login</code> likhein:</b>"""
+
 
 def _get_main_keyboard():
     cfg = db_manager.get_system_settings()
@@ -889,6 +931,38 @@ Send your Channel ID or Username now:"""
         keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data="admin_main")]]
         await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
 
+    # 22. Telegram Userbot Dashboard
+    elif data == "admin_userbot":
+        status = userbot_manager.get_status()
+        panel_text = _get_userbot_panel_text()
+        await query.edit_message_text(
+            panel_text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=get_userbot_keyboard(status["active"])
+        )
+
+    elif data == "userbot_start_login":
+        admin_states[user.id] = {"state": "waiting_userbot_phone", "ts": time.time()}
+        prompt = """📱 <b>Telegram Userbot Login</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 Kripya apna <b>Telegram Phone Number</b> country code ke sath bhejein:
+<i>Example:</i> <code>+919876543210</code> ya <code>919876543210</code>
+
+<i>(Radd karne ke liye <code>/cancel</code> likhein)</i>"""
+        await query.message.reply_text(prompt, parse_mode=ParseMode.HTML)
+        await query.answer()
+
+    elif data == "userbot_logout":
+        await userbot_manager.logout()
+        status = userbot_manager.get_status()
+        panel_text = _get_userbot_panel_text()
+        await query.answer("🚪 Userbot disconnected!", show_alert=True)
+        await query.edit_message_text(
+            panel_text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=get_userbot_keyboard(status["active"])
+        )
+
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if not is_admin(user.id):
@@ -983,6 +1057,109 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.error(f"Error saving HTML file: {e}")
                 await update.message.reply_text(f"❌ Failed to process HTML file: {e}")
             return
+
+    if text.lower() == "/cancel":
+        admin_states.pop(user.id, None)
+        await userbot_manager.cancel_login(user.id)
+        await update.message.reply_text("❌ Action cancel kar diya gaya.", reply_markup=_get_main_keyboard())
+        return
+
+    # Userbot Login Step 1: Phone number
+    if current_state == "waiting_userbot_phone":
+        wait_msg = await update.message.reply_text("⏳ Connecting to Telegram & sending OTP code...")
+        res = await userbot_manager.send_login_code(user.id, text)
+        if not res.get("ok"):
+            admin_states.pop(user.id, None)
+            await wait_msg.edit_text(
+                f"❌ <b>Error:</b> {res.get('error')}\n\nDobara koshish karne ke liye <code>/login</code> likhein.",
+                parse_mode=ParseMode.HTML
+            )
+            return
+
+        admin_states[user.id] = {"state": "waiting_userbot_otp", "ts": time.time(), "phone": res.get("phone")}
+        await wait_msg.edit_text(
+            f"📩 <b>OTP Code Sent to {res.get('phone')}!</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"Telegram app me aaya <b>Login Code</b> yahan bhejein.\n\n"
+            f"💡 <i>Tip: Agar Telegram code direct na bhejne de to space dekar bhejein (jaise: <code>1 2 3 4 5</code>).</i>\n\n"
+            f"<i>(Radd karne ke liye <code>/cancel</code> likhein)</i>",
+            parse_mode=ParseMode.HTML
+        )
+        return
+
+    # Userbot Login Step 2: OTP
+    elif current_state == "waiting_userbot_otp":
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
+
+        wait_msg = await update.message.reply_text("⏳ Verifying OTP code...")
+        res = await userbot_manager.sign_in_otp(user.id, text)
+        if not res.get("ok"):
+            await wait_msg.edit_text(
+                f"❌ <b>Verification Error:</b> {res.get('error')}\n\nSahi OTP bhejein ya <code>/cancel</code> likhein.",
+                parse_mode=ParseMode.HTML
+            )
+            return
+
+        if res.get("needs_password"):
+            admin_states[user.id] = {"state": "waiting_userbot_password", "ts": time.time()}
+            await wait_msg.edit_text(
+                "🔐 <b>Two-Step Verification (2FA Password) Required!</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "Is account par 2FA Cloud Password set hai.\n\n"
+                "👉 Kripya apna <b>Two-Step Password</b> yahan bhejein:\n\n"
+                "<i>(Radd karne ke liye <code>/cancel</code> likhein)</i>",
+                parse_mode=ParseMode.HTML
+            )
+            return
+
+        admin_states.pop(user.id, None)
+        me = res.get("me", {})
+        prem = "✅ Active (100% Animated Custom Emojis Enabled!)" if me.get("is_premium") else "⚠️ Inactive (Regular Account)"
+        await wait_msg.edit_text(
+            f"🎉 <b>Telegram Userbot Successfully Connected!</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 <b>Account:</b> {me.get('first_name', '')} {me.get('last_name', '')}\n"
+            f"🔖 <b>Username:</b> @{me.get('username') or 'None'}\n"
+            f"🆔 <b>User ID:</b> <code>{me.get('id', '')}</code>\n"
+            f"⭐ <b>Telegram Premium:</b> {prem}\n━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🚀 Ab channel me sabhi predictions, win screenshots aur alerts aapke is Premium account ke through <b>100% Animated Custom Emojis</b> ke sath deliver honge!\n\n"
+            f"<i>(Session logout karne ke liye <code>/logout_userbot</code> use karein)</i>",
+            parse_mode=ParseMode.HTML,
+            reply_markup=_get_main_keyboard()
+        )
+        return
+
+    # Userbot Login Step 3: 2FA Password
+    elif current_state == "waiting_userbot_password":
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
+
+        wait_msg = await update.message.reply_text("⏳ Verifying 2FA Password...")
+        res = await userbot_manager.check_password(user.id, text)
+        if not res.get("ok"):
+            await wait_msg.edit_text(
+                f"❌ <b>2FA Error:</b> {res.get('error')}\n\nSahi Password bhejein ya <code>/cancel</code> likhein.",
+                parse_mode=ParseMode.HTML
+            )
+            return
+
+        admin_states.pop(user.id, None)
+        me = res.get("me", {})
+        prem = "✅ Active (100% Animated Custom Emojis Enabled!)" if me.get("is_premium") else "⚠️ Inactive (Regular Account)"
+        await wait_msg.edit_text(
+            f"🎉 <b>Telegram Userbot Successfully Connected!</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 <b>Account:</b> {me.get('first_name', '')} {me.get('last_name', '')}\n"
+            f"🔖 <b>Username:</b> @{me.get('username') or 'None'}\n"
+            f"🆔 <b>User ID:</b> <code>{me.get('id', '')}</code>\n"
+            f"⭐ <b>Telegram Premium:</b> {prem}\n━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🚀 Ab channel me sabhi predictions, win screenshots aur alerts aapke is Premium account ke through <b>100% Animated Custom Emojis</b> ke sath deliver honge!\n\n"
+            f"<i>(Session logout karne ke liye <code>/logout_userbot</code> use karein)</i>",
+            parse_mode=ParseMode.HTML,
+            reply_markup=_get_main_keyboard()
+        )
+        return
 
     # Case 1: Channel ID received
     if current_state == "waiting_channel_id":
@@ -1211,3 +1388,54 @@ Choose the Telegram Native Colored Button Style below:"""
             parse_mode=ParseMode.HTML,
             reply_markup=_get_main_keyboard()
         )
+
+# ================= USERBOT COMMAND HANDLERS =================
+
+async def login_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not user or not is_admin(user.id):
+        return
+
+    admin_states[user.id] = {"state": "waiting_userbot_phone", "ts": time.time()}
+    prompt = """📱 <b>Telegram Userbot Login (100% Animated Emojis)</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Apna Telegram account connect karein jisse channel me saari predictions <b>100% Animated Premium Emojis</b> ke sath post hon!
+
+👉 Kripya apna <b>Telegram Phone Number</b> country code ke sath bhejein:
+<i>Example:</i> <code>+919876543210</code> ya <code>919876543210</code>
+
+<i>(Radd karne ke liye <code>/cancel</code> likhein)</i>"""
+    await update.message.reply_text(prompt, parse_mode=ParseMode.HTML)
+
+async def userbot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not user or not is_admin(user.id):
+        return
+    status = userbot_manager.get_status()
+    panel_text = _get_userbot_panel_text()
+    await update.message.reply_text(
+        panel_text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=get_userbot_keyboard(status["active"])
+    )
+
+async def logout_userbot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not user or not is_admin(user.id):
+        return
+    await userbot_manager.logout()
+    await update.message.reply_text(
+        "🚪 <b>Telegram Userbot successfully logged out!</b>\n\nAb messages standard Bot API ke through post honge.",
+        parse_mode=ParseMode.HTML,
+        reply_markup=_get_main_keyboard()
+    )
+
+async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not user:
+        return
+    if user.id in admin_states:
+        admin_states.pop(user.id, None)
+        await userbot_manager.cancel_login(user.id)
+        await update.message.reply_text("❌ Action cancel kar diya gaya.", reply_markup=_get_main_keyboard())
+

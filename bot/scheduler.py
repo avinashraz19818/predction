@@ -25,6 +25,7 @@ from bot.templates import (
     strip_tg_emoji_tags
 )
 from bot.keyboards import get_channel_post_keyboard
+from services.userbot_manager import userbot_manager
 
 logger = logging.getLogger(__name__)
 
@@ -85,8 +86,18 @@ class WinGoScheduler:
     # ================= MESSAGE SENDING HELPERS =================
 
     async def _safe_send_message(self, channel: dict, text: str):
-        """Sends message with custom colored buttons & premium emojis, with fallback"""
+        """Sends message with custom colored buttons & premium emojis, with userbot & standard fallback"""
         channel_id = channel["channel_id"]
+
+        # 1. Try sending via Telegram Userbot for 100% animated custom emojis
+        if userbot_manager.is_active():
+            try:
+                sent = await userbot_manager.send_channel_message(channel_id, text, channel)
+                if sent:
+                    return sent
+            except Exception as ue:
+                logger.warning(f"⚠️ Userbot send message failed ({ue}), falling back to Bot API...")
+
         reply_markup = get_channel_post_keyboard(channel, include_custom_emoji=True, include_style=True)
 
         try:
@@ -137,8 +148,18 @@ class WinGoScheduler:
             return None
 
     async def _safe_send_photo(self, channel: dict, photo_bytes: bytes, caption: str):
-        """Sends photo with custom colored buttons & premium emojis, with fallback"""
+        """Sends photo with custom colored buttons & premium emojis, with userbot & standard fallback"""
         channel_id = channel["channel_id"]
+
+        # 1. Try sending via Telegram Userbot for 100% animated custom emojis in caption
+        if userbot_manager.is_active():
+            try:
+                sent = await userbot_manager.send_channel_photo(channel_id, photo_bytes, caption, channel)
+                if sent:
+                    return sent
+            except Exception as ue:
+                logger.warning(f"⚠️ Userbot send photo failed ({ue}), falling back to Bot API...")
+
         reply_markup = get_channel_post_keyboard(channel, include_custom_emoji=True, include_style=True)
 
         try:
