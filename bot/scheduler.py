@@ -97,27 +97,39 @@ class WinGoScheduler:
             return msg
         except TelegramError as te:
             err_str = str(te).lower()
-            if "custom_emoji" in err_str or "button" in err_str or "style" in err_str:
+            if "custom_emoji" in err_str or "button" in err_str or "style" in err_str or "entity" in err_str or "parse" in err_str:
                 try:
                     fallback_markup = get_channel_post_keyboard(channel, include_custom_emoji=False, include_style=True)
                     msg = await self.bot.send_message(
                         chat_id=channel_id,
-                        text=text,
+                        text=strip_tg_emoji_tags(text),
                         parse_mode=ParseMode.HTML,
                         reply_markup=fallback_markup,
                         disable_web_page_preview=True
                     )
                     return msg
                 except TelegramError:
-                    fallback_markup2 = get_channel_post_keyboard(channel, include_custom_emoji=False, include_style=False)
-                    msg = await self.bot.send_message(
-                        chat_id=channel_id,
-                        text=strip_tg_emoji_tags(text),
-                        parse_mode=ParseMode.HTML,
-                        reply_markup=fallback_markup2,
-                        disable_web_page_preview=True
-                    )
-                    return msg
+                    try:
+                        fallback_markup2 = get_channel_post_keyboard(channel, include_custom_emoji=False, include_style=False)
+                        msg = await self.bot.send_message(
+                            chat_id=channel_id,
+                            text=strip_tg_emoji_tags(text),
+                            parse_mode=ParseMode.HTML,
+                            reply_markup=fallback_markup2,
+                            disable_web_page_preview=True
+                        )
+                        return msg
+                    except TelegramError as te2:
+                        # Final plain-text fallback
+                        try:
+                            clean_plain = re.sub(r"<[^>]+>", "", text)
+                            return await self.bot.send_message(
+                                chat_id=channel_id,
+                                text=clean_plain,
+                                disable_web_page_preview=True
+                            )
+                        except Exception:
+                            pass
             logger.error(f"❌ Failed to send message to {channel_id}: {te}")
             return None
 
@@ -137,27 +149,35 @@ class WinGoScheduler:
             return msg
         except TelegramError as te:
             err_str = str(te).lower()
-            if "custom_emoji" in err_str or "button" in err_str or "style" in err_str:
+            if "custom_emoji" in err_str or "button" in err_str or "style" in err_str or "entity" in err_str or "parse" in err_str:
                 try:
                     fallback_markup = get_channel_post_keyboard(channel, include_custom_emoji=False, include_style=True)
                     msg = await self.bot.send_photo(
                         chat_id=channel_id,
                         photo=io.BytesIO(photo_bytes),
-                        caption=caption,
+                        caption=strip_tg_emoji_tags(caption),
                         parse_mode=ParseMode.HTML,
                         reply_markup=fallback_markup
                     )
                     return msg
                 except TelegramError:
-                    fallback_markup2 = get_channel_post_keyboard(channel, include_custom_emoji=False, include_style=False)
-                    msg = await self.bot.send_photo(
-                        chat_id=channel_id,
-                        photo=io.BytesIO(photo_bytes),
-                        caption=strip_tg_emoji_tags(caption),
-                        parse_mode=ParseMode.HTML,
-                        reply_markup=fallback_markup2
-                    )
-                    return msg
+                    try:
+                        fallback_markup2 = get_channel_post_keyboard(channel, include_custom_emoji=False, include_style=False)
+                        msg = await self.bot.send_photo(
+                            chat_id=channel_id,
+                            photo=io.BytesIO(photo_bytes),
+                            caption=strip_tg_emoji_tags(caption),
+                            parse_mode=ParseMode.HTML,
+                            reply_markup=fallback_markup2
+                        )
+                        return msg
+                    except TelegramError:
+                        clean_plain = re.sub(r"<[^>]+>", "", caption)
+                        return await self.bot.send_photo(
+                            chat_id=channel_id,
+                            photo=io.BytesIO(photo_bytes),
+                            caption=clean_plain
+                        )
             logger.error(f"❌ Failed to send photo to {channel_id}: {te}")
             return None
 
@@ -586,8 +606,10 @@ class WinGoScheduler:
                 ok = await self._safe_send_message(ch, text)
                 if ok:
                     logger.info(f"✅ Signal posted to channel {channel_id}")
+                else:
+                    logger.warning(f"⚠️ Failed to deliver signal to channel {channel_id} (verify bot is Admin in channel)")
             except Exception as e:
-                logger.error(f"❌ Unexpected error sending to {channel_id}: {e}")
+                logger.error(f"❌ Unexpected error sending to {channel_id}: {e}", exc_info=True)
 
     async def _broadcast_result(
         self,

@@ -41,13 +41,17 @@ def main():
     logger.info("🎨 UI: Separate Messages, Styled High-Impact Buttons, AI Prediction")
 
     # Resilient Telegram Network Configuration (prevents ConnectTimeout / TimedOut on VPS)
+    # read_timeout (40s) must strictly exceed get_updates timeout (20s)
     request_config = HTTPXRequest(
         connection_pool_size=30,
         connect_timeout=20.0,
-        read_timeout=30.0,
-        write_timeout=20.0,
-        pool_timeout=15.0
+        read_timeout=40.0,
+        write_timeout=25.0,
+        pool_timeout=20.0
     )
+
+    async def error_handler(update: object, context):
+        logger.error(f"⚠️ Telegram update error: {context.error}", exc_info=context.error)
 
     app = (
         Application.builder()
@@ -58,6 +62,8 @@ def main():
         .build()
     )
 
+    app.add_error_handler(error_handler)
+
     # Register handlers
     app.add_handler(CommandHandler(["start", "admin"], start_handler))
     app.add_handler(CallbackQueryHandler(callback_handler))
@@ -67,10 +73,10 @@ def main():
     while True:
         try:
             app.run_polling(
-                drop_pending_updates=True,
+                drop_pending_updates=False,
                 bootstrap_retries=5,
-                timeout=30,
-                poll_interval=1.0
+                timeout=20,
+                poll_interval=0.5
             )
             break
         except (KeyboardInterrupt, SystemExit):

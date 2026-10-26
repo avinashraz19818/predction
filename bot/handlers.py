@@ -1,6 +1,7 @@
 import os
 import io
 import re
+import html
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -54,10 +55,11 @@ def _get_admin_panel_text(user_first_name: str) -> str:
     martingale_mult = db_manager.get_martingale_multiplier()
     max_loss = db_manager.get_max_loss_display_level()
     clean_loss = "ENABLED" if db_manager.get_auto_clean_loss() else "DISABLED"
+    safe_name = html.escape(user_first_name or "Admin")
 
     return f"""👑 <b>𝗪𝗜𝗡𝗚𝗢 𝗔𝗜 𝗣𝗥𝗘𝗗𝗜𝗖𝗧𝗜𝗢𝗡 𝗔𝗗𝗠𝗜𝗡 𝗣𝗔𝗡𝗘𝗟</b> 👑
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-👋 Welcome, <b>{user_first_name}</b>!
+👋 Welcome, <b>{safe_name}</b>!
 ⚡ <b>Operating Mode:</b> <code>{mode_str}</code>
 💰 <b>Base Bet:</b> <code>₹{base_bet}</code> (Martingale: <b>{martingale_mult}X</b>)
 🛡️ <b>Max Public Loss Cards:</b> <b>Level {max_loss}</b> (Anti-Loss Protection)
@@ -80,13 +82,31 @@ def _get_main_keyboard():
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    if not is_admin(user.id):
-        await update.message.reply_text("⛔ You are not authorized to access this bot.")
+    if not user:
         return
 
-    text = _get_admin_panel_text(user.first_name)
-    reply_markup = _get_main_keyboard()
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
+    logger.info(f"📩 Incoming /start from user_id={user.id} (@{user.username}, name='{user.first_name}')")
+
+    if not is_admin(user.id):
+        logger.warning(f"⛔ Unauthorized access attempt from user_id={user.id} (@{user.username})")
+        if update.message:
+            await update.message.reply_text(
+                f"⛔ <b>Access Denied</b>\n\nYour User ID: <code>{user.id}</code>\n"
+                f"Please add this ID to <code>ADMIN_IDS</code> in <code>.env</code> file to gain admin access.",
+                parse_mode=ParseMode.HTML
+            )
+        return
+
+    try:
+        text = _get_admin_panel_text(user.first_name)
+        reply_markup = _get_main_keyboard()
+        if update.message:
+            await update.message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
+            logger.info(f"✅ Admin panel menu delivered to user {user.id}")
+    except Exception as e:
+        logger.error(f"Error rendering admin panel: {e}", exc_info=True)
+        if update.message:
+            await update.message.reply_text(f"⚠️ Error loading admin panel: {e}")
 
 async def _render_channel_view(query, ch_id: str):
     ch = db_manager.get_channel(ch_id)
