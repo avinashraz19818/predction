@@ -601,104 +601,21 @@ class PlaywrightWinGoWorker:
             except Exception as e:
                 logger.error(f"Error taking popup screenshot: {e}")
         else:
-            logger.info(f"ℹ️ Native popup not caught for {target_issue}. Injecting authentic BDGWin Congratulations popup...")
-            buf = await self.render_and_capture_win_popup(
-                game_id=game_id,
-                target_issue=target_issue,
-                choice=choice,
-                actual_number=number if number is not None else (7 if choice.upper() == "BIG" else 2),
-                level=level,
-                streak=1,
-                confidence=confidence
-            )
-            if buf:
+            logger.info(f"ℹ️ Native popup not shown on page for {target_issue} (missed or account balance 0). Caching genuine live board shot...")
+            try:
+                await self.inject_prediction_overlay(
+                    issue=target_issue,
+                    choice=choice,
+                    confidence=confidence,
+                    level=level,
+                    number=number
+                )
+                shot_bytes = await self.page.screenshot(type="png", full_page=False)
+                buf = io.BytesIO(shot_bytes)
+                buf.seek(0)
                 self.cached_win_screenshots[str(target_issue)] = buf
-
-    async def render_and_capture_win_popup(
-        self,
-        game_id: str,
-        target_issue: str,
-        choice: str = "BIG",
-        actual_number: int = 7,
-        level: int = 1,
-        streak: int = 1,
-        confidence: float = 95.0
-    ) -> Optional[io.BytesIO]:
-        """
-        Guaranteed 100% win screenshot delivery:
-        Injects the authentic BDGWin 'Congratulations' popup and the floating Zayro VIP Hack card
-        directly onto the live game screen, captures the screenshot, and cleans up.
-        """
-        if not self.page:
-            return None
-        try:
-            from services.overlay_manager import overlay_manager, WIN_POPUP_CSS, ZAYRO_CSS
-
-            # Map game name
-            game_name = "WinGo 1 Min"
-            if "30s" in str(game_id):
-                game_name = "WinGo 30s"
-            elif "3m" in str(game_id):
-                game_name = "WinGo 3 Min"
-            elif "5m" in str(game_id):
-                game_name = "WinGo 5 Min"
-
-            # 1. Generate Winning Popup HTML
-            popup_html = overlay_manager.generate_win_popup_html(
-                issue=str(target_issue),
-                choice=choice,
-                actual_number=actual_number,
-                level=level,
-                game_name=game_name
-            )
-
-            # 2. Inject Winning Popup into DOM
-            await self.page.evaluate("""({html, css}) => {
-                let s = document.getElementById('bdgwin-win-popup-style');
-                if (!s) {
-                    s = document.createElement('style');
-                    s.id = 'bdgwin-win-popup-style';
-                    document.head.appendChild(s);
-                }
-                s.textContent = css;
-
-                let wrap = document.getElementById('bdgwin-win-popup-wrap');
-                if (!wrap) {
-                    wrap = document.createElement('div');
-                    wrap.id = 'bdgwin-win-popup-wrap';
-                    document.body.appendChild(wrap);
-                }
-                wrap.innerHTML = html;
-                wrap.style.display = 'block';
-            }""", {"html": popup_html, "css": WIN_POPUP_CSS})
-
-            # 3. Inject VIP Hack Card on top
-            await self.inject_prediction_overlay(
-                issue=str(target_issue),
-                choice=choice,
-                confidence=confidence,
-                level=level,
-                number=actual_number
-            )
-
-            await asyncio.sleep(0.15)
-            shot_bytes = await self.page.screenshot(type="png", full_page=False)
-
-            # 4. Clean up Winning Popup from page so live game continues smoothly
-            await self.page.evaluate("""() => {
-                const w = document.getElementById('bdgwin-win-popup-wrap');
-                if (w) w.remove();
-                const s = document.getElementById('bdgwin-win-popup-style');
-                if (s) s.remove();
-            }""")
-
-            buf = io.BytesIO(shot_bytes)
-            buf.seek(0)
-            logger.info(f"📸 Guaranteed Win Popup Screenshot with VIP Overlay generated for period {target_issue}!")
-            return buf
-        except Exception as e:
-            logger.error(f"Error rendering win popup screenshot: {e}")
-            return None
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------ #
     #  Bet Amount & Multiplier Setter (smex logic)

@@ -79,17 +79,9 @@ class BetAutomationService:
                 logger.info(f"📸 Delivering live Win Popup screenshot for period {target_issue}!")
                 return shot
 
-        # 3. If native popup was not caught in time, generate guaranteed authentic winning popup on live screen!
+        # 3. If nothing in cache, capture genuine real-time live board
         if self.worker.is_ready:
-            logger.info(f"🎨 Generating guaranteed authentic BDGWin Congratulations popup for period {target_issue}...")
-            return await self.worker.render_and_capture_win_popup(
-                game_id=game_id,
-                target_issue=target_issue,
-                choice=choice,
-                actual_number=actual_number,
-                level=level,
-                streak=streak
-            )
+            return await self.worker.capture_board_screenshot(game_id=game_id)
 
         return None
 
