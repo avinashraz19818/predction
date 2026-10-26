@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import Optional
+from typing import Optional, List
 
 from database import db_manager
 
@@ -15,7 +15,7 @@ ZAYRO_CSS = """
   --z-gold: #ffd000;
   --z-green: #00ff88;
   --z-bg-card: #0d0208;
-  --z-card-w: 240px;
+  --z-card-w: 236px;
 }
 
 #zayro-vip-overlay {
@@ -46,9 +46,9 @@ ZAYRO_CSS = """
   border-radius: 16px !important;
   box-shadow: 
     0 16px 40px rgba(0, 0, 0, 0.95),
-    0 0 25px rgba(255, 0, 60, 0.4),
-    inset 0 0 15px rgba(255, 0, 60, 0.18) !important;
-  border: 1.2px solid rgba(255, 0, 60, 0.7) !important;
+    0 0 25px rgba(255, 0, 60, 0.45),
+    inset 0 0 15px rgba(255, 0, 60, 0.2) !important;
+  border: 1.2px solid rgba(255, 0, 60, 0.75) !important;
   overflow: visible !important;
 }
 
@@ -104,37 +104,22 @@ ZAYRO_CSS = """
   position: absolute !important;
   width: 9px !important;
   height: 9px !important;
+  border-color: #ffd000 !important;
+  border-style: solid !important;
+  z-index: 9 !important;
   pointer-events: none !important;
-  z-index: 6 !important;
 }
-#zayro-vip-overlay .card-bracket::before, #zayro-vip-overlay .card-bracket::after {
-  content: '' !important;
-  position: absolute !important;
-  background: #ffd000 !important;
-  box-shadow: 0 0 5px #ffd000 !important;
-}
-#zayro-vip-overlay .b-tl { top: -2px !important; left: -2px !important; }
-#zayro-vip-overlay .b-tl::before { top: 0 !important; left: 0 !important; width: 7px !important; height: 1.5px !important; }
-#zayro-vip-overlay .b-tl::after  { top: 0 !important; left: 0 !important; width: 1.5px !important; height: 7px !important; }
-
-#zayro-vip-overlay .b-tr { top: -2px !important; right: -2px !important; }
-#zayro-vip-overlay .b-tr::before { top: 0 !important; right: 0 !important; width: 7px !important; height: 1.5px !important; }
-#zayro-vip-overlay .b-tr::after  { top: 0 !important; right: 0 !important; width: 1.5px !important; height: 7px !important; }
-
-#zayro-vip-overlay .b-bl { bottom: -2px !important; left: -2px !important; }
-#zayro-vip-overlay .b-bl::before { bottom: 0 !important; left: 0 !important; width: 7px !important; height: 1.5px !important; }
-#zayro-vip-overlay .b-bl::after  { bottom: 0 !important; left: 0 !important; width: 1.5px !important; height: 7px !important; }
-
-#zayro-vip-overlay .b-br { bottom: -2px !important; right: -2px !important; }
-#zayro-vip-overlay .b-br::before { bottom: 0 !important; right: 0 !important; width: 7px !important; height: 1.5px !important; }
-#zayro-vip-overlay .b-br::after  { bottom: 0 !important; right: 0 !important; width: 1.5px !important; height: 7px !important; }
+#zayro-vip-overlay .b-tl { top: -2px !important; left: -2px !important; border-width: 2px 0 0 2px !important; border-top-left-radius: 4px !important; }
+#zayro-vip-overlay .b-tr { top: -2px !important; right: -2px !important; border-width: 2px 2px 0 0 !important; border-top-right-radius: 4px !important; }
+#zayro-vip-overlay .b-bl { bottom: -2px !important; left: -2px !important; border-width: 0 0 2px 2px !important; border-bottom-left-radius: 4px !important; }
+#zayro-vip-overlay .b-br { bottom: -2px !important; right: -2px !important; border-width: 0 2px 2px 0 !important; border-bottom-right-radius: 4px !important; }
 
 #zayro-vip-overlay .card-inner {
   position: relative !important;
-  padding: 8px 7px 7px !important;
+  padding: 8px 6px 7px !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 5px !important;
+  gap: 4px !important;
   z-index: 2 !important;
 }
 
@@ -143,15 +128,15 @@ ZAYRO_CSS = """
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  background: rgba(15, 2, 8, 0.9) !important;
+  background: rgba(15, 2, 8, 0.85) !important;
   border: 1px solid rgba(255, 0, 60, 0.4) !important;
   border-radius: 6px !important;
-  padding: 3px 6px !important;
-  font-size: 6.5px !important;
+  padding: 2.5px 6px !important;
+  font-family: monospace, sans-serif !important;
+  font-size: 6.2px !important;
   font-weight: 800 !important;
   letter-spacing: 0.05em !important;
   color: #ffffff !important;
-  font-family: monospace, sans-serif !important;
 }
 
 #zayro-vip-overlay .strip-item {
@@ -159,41 +144,26 @@ ZAYRO_CSS = """
   align-items: center !important;
   gap: 2px !important;
 }
-#zayro-vip-overlay .strip-item span:first-child {
-  color: rgba(255, 255, 255, 0.75) !important;
-}
-#zayro-vip-overlay .strip-val {
-  color: #ffffff !important;
-  font-weight: 900 !important;
-}
-#zayro-vip-overlay .strip-mode {
-  color: #ff003c !important;
-  font-weight: 900 !important;
-  text-shadow: 0 0 6px rgba(255, 0, 60, 0.7) !important;
-}
-#zayro-vip-overlay .strip-ping {
-  color: #00ff88 !important;
-  font-weight: 900 !important;
-  text-shadow: 0 0 6px rgba(0, 255, 136, 0.6) !important;
-}
+#zayro-vip-overlay .strip-val { color: #ffffff !important; }
+#zayro-vip-overlay .strip-mode { color: #00ff88 !important; text-shadow: 0 0 5px rgba(0, 255, 136, 0.7) !important; }
+#zayro-vip-overlay .strip-ping { color: #00ff88 !important; }
 
 #zayro-vip-overlay .card-screen {
   position: relative !important;
   width: 100% !important;
-  background: #090105 !important;
+  background: radial-gradient(circle at 50% 50%, #150209 0%, #0a0104 100%) !important;
   border-radius: 10px !important;
-  border: 1px solid rgba(255, 0, 60, 0.5) !important;
-  padding: 6px 5px !important;
-  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.9) !important;
+  border: 1px solid rgba(255, 0, 60, 0.3) !important;
+  padding: 5px 4px !important;
   overflow: hidden !important;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8) !important;
 }
 
 #zayro-vip-overlay .screen-cyber-matrix {
   position: absolute !important;
   inset: 0 !important;
   pointer-events: none !important;
-  overflow: hidden !important;
-  z-index: 0 !important;
+  z-index: 1 !important;
 }
 
 #zayro-vip-overlay .circuit-svg {
@@ -201,7 +171,7 @@ ZAYRO_CSS = """
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  opacity: 0.3 !important;
+  opacity: 0.35 !important;
 }
 
 #zayro-vip-overlay .telemetry-hud-tag {
@@ -243,7 +213,7 @@ ZAYRO_CSS = """
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 5px !important;
+  gap: 3.5px !important;
 }
 
 #zayro-vip-overlay .pred-showcase-row {
@@ -254,10 +224,11 @@ ZAYRO_CSS = """
   padding: 0 4px !important;
 }
 
+/* 3D OUTCOME INGOT */
 #zayro-vip-overlay .res-outcome-ingot {
   position: relative !important;
-  width: 110px !important;
-  height: 52px !important;
+  width: 104px !important;
+  height: 48px !important;
   border-radius: 9px !important;
   display: flex !important;
   flex-direction: column !important;
@@ -296,7 +267,7 @@ ZAYRO_CSS = """
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
 }
 #zayro-vip-overlay .ingot-main-text {
-  font-size: 21px !important;
+  font-size: 19px !important;
   font-weight: 900 !important;
   letter-spacing: 0.05em !important;
   color: #ffffff !important;
@@ -308,7 +279,7 @@ ZAYRO_CSS = """
   align-items: center !important;
   gap: 3px !important;
   font-family: monospace, sans-serif !important;
-  font-size: 6.5px !important;
+  font-size: 6.2px !important;
   font-weight: 800 !important;
   color: #ffffff !important;
 }
@@ -320,53 +291,98 @@ ZAYRO_CSS = """
   box-shadow: 0 0 4px #ffd000 !important;
 }
 
+/* 3D CASINO CHIP PEDESTAL WITH AUTHENTIC BALL IMAGE */
 #zayro-vip-overlay .res-chip-pedestal {
   position: relative !important;
-  width: 86px !important;
+  width: 82px !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
 }
 
-#zayro-vip-overlay .res-ball {
-  position: relative !important;
+#zayro-vip-overlay .pedestal-radar-rings {
+  position: absolute !important;
+  top: 0 !important;
   width: 44px !important;
   height: 44px !important;
+  pointer-events: none !important;
+}
+#zayro-vip-overlay .ped-ring {
+  position: absolute !important;
+  inset: -2px !important;
+  border-radius: 50% !important;
+  border: 1px dashed rgba(255, 0, 60, 0.5) !important;
+  animation: zayroRadarRingSpin 6s linear infinite !important;
+}
+#zayro-vip-overlay .ring-inner {
+  inset: 2px !important;
+  border-style: dotted !important;
+  border-color: rgba(255, 208, 0, 0.45) !important;
+  animation: zayroRadarRingSpin 4s linear infinite reverse !important;
+}
+@keyframes zayroRadarRingSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+#zayro-vip-overlay .ball-ambient-glow {
+  position: absolute !important;
+  top: 0 !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+  filter: blur(6px) !important;
+  opacity: 0.65 !important;
+  pointer-events: none !important;
+}
+
+#zayro-vip-overlay .res-ball {
+  position: relative !important;
+  width: 42px !important;
+  height: 42px !important;
   border-radius: 50% !important;
   display: grid !important;
   place-items: center !important;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.85) !important;
 }
 
+#zayro-vip-overlay .ball-bg-img {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  z-index: 1 !important;
+}
+
 #zayro-vip-overlay .ball-circle-red {
   background: radial-gradient(circle at 35% 30%, #ff4d6d 0%, #c9184a 55%, #590d22 100%) !important;
   border: 1.5px solid #ff758f !important;
-  box-shadow: 0 0 10px rgba(255, 0, 60, 0.7) !important;
 }
 #zayro-vip-overlay .ball-circle-green {
   background: radial-gradient(circle at 35% 30%, #52b788 0%, #2d6a4f 55%, #081c15 100%) !important;
   border: 1.5px solid #74c69d !important;
-  box-shadow: 0 0 10px rgba(0, 255, 136, 0.7) !important;
 }
 #zayro-vip-overlay .ball-circle-violet {
   background: radial-gradient(circle at 35% 30%, #b5179e 0%, #7209b7 55%, #3a0ca3 100%) !important;
   border: 1.5px solid #c77dff !important;
-  box-shadow: 0 0 10px rgba(181, 23, 158, 0.7) !important;
 }
 
 #zayro-vip-overlay .res-num-text {
   position: relative !important;
   z-index: 2 !important;
-  font-size: 20px !important;
+  font-size: 18px !important;
   font-weight: 900 !important;
   color: #ffffff !important;
-  text-shadow: 0 0 6px rgba(0, 0, 0, 0.85) !important;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.95), 0 1px 3px #000 !important;
+  line-height: 1 !important;
 }
 
 #zayro-vip-overlay .res-color-pill {
-  margin-top: 3px !important;
-  font-size: 5.5px !important;
+  margin-top: 2px !important;
+  font-size: 5.2px !important;
   font-weight: 900 !important;
   letter-spacing: 0.03em !important;
   color: #ffd000 !important;
@@ -385,10 +401,10 @@ ZAYRO_CSS = """
   gap: 4px !important;
   width: 100% !important;
   font-family: monospace, sans-serif !important;
-  font-size: 7px !important;
+  font-size: 6.8px !important;
   font-weight: 800 !important;
   color: #ffffff !important;
-  margin-top: 2px !important;
+  margin: 1px 0 !important;
 }
 
 #zayro-vip-overlay .horizon-line {
@@ -401,6 +417,186 @@ ZAYRO_CSS = """
   font-weight: 900 !important;
   text-shadow: 0 0 4px rgba(0, 255, 136, 0.6) !important;
 }
+
+/* 6 HISTORICAL CASINO MINI-CHIPS ROW */
+#zayro-vip-overlay .hist-balls-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  width: 100% !important;
+  padding-bottom: 2px !important;
+}
+
+#zayro-vip-overlay .h-chip-col {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 1.5px !important;
+}
+
+#zayro-vip-overlay .h-mini-chip {
+  position: relative !important;
+  width: 19px !important;
+  height: 19px !important;
+  border-radius: 50% !important;
+  background-size: cover !important;
+  background-position: center !important;
+  display: grid !important;
+  place-items: center !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
+}
+
+#zayro-vip-overlay .h-mini-num {
+  position: relative !important;
+  z-index: 2 !important;
+  font-size: 8.5px !important;
+  font-weight: 900 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px #000 !important;
+  line-height: 1 !important;
+}
+
+#zayro-vip-overlay .h-pip {
+  font-size: 5.2px !important;
+  font-weight: 900 !important;
+  border-radius: 3px !important;
+  padding: 0.5px 3px !important;
+  line-height: 1 !important;
+}
+#zayro-vip-overlay .h-pip.b { background: #ff003c !important; color: #ffffff !important; }
+#zayro-vip-overlay .h-pip.s { background: #00ff88 !important; color: #000000 !important; }
+
+/* RED GLOSSY CARD BUTTONS */
+#zayro-vip-overlay .card-buttons {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  width: 100% !important;
+  margin-top: 2px !important;
+}
+
+#zayro-vip-overlay #action-btn {
+  flex: 1.5 !important;
+  height: 28px !important;
+  border: none !important;
+  border-radius: 14px !important;
+  background: linear-gradient(180deg, #ff2458 0%, #c4002c 55%, #7a001a 100%) !important;
+  color: #ffffff !important;
+  font-family: inherit !important;
+  font-size: 9.5px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  box-shadow: 
+    0 4px 10px rgba(0, 0, 0, 0.6),
+    0 0 10px rgba(255, 0, 60, 0.5),
+    inset 0 1px 2px rgba(255, 255, 255, 0.5),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.6) !important;
+  border: 1px solid #ff5c85 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+}
+
+#zayro-vip-overlay .hide-btn {
+  flex: 1 !important;
+  height: 28px !important;
+  border: none !important;
+  border-radius: 14px !important;
+  background: linear-gradient(180deg, #1f040d 0%, #120207 100%) !important;
+  color: #ffffff !important;
+  font-family: inherit !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  border: 1px solid rgba(255, 0, 60, 0.35) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
+  cursor: pointer !important;
+}
+
+/* FLOATING MINI HACK TOGGLE BUTTON */
+#miniBtn {
+  position: fixed !important;
+  top: 14px !important;
+  right: 14px !important;
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle at 35% 30%, #ff1a53 0%, #a00024 55%, #40000e 100%) !important;
+  border: 1.5px solid #ff4d79 !important;
+  box-shadow: 
+    0 0 16px rgba(255, 0, 60, 0.65),
+    inset 0 2px 4px rgba(255, 255, 255, 0.5),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.85) !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+}
+
+#miniBtn .mb-ring {
+  position: absolute !important;
+  inset: -3px !important;
+  width: calc(100% + 6px) !important;
+  height: calc(100% + 6px) !important;
+  pointer-events: none !important;
+  animation: zayroCoinSpinRing 7s linear infinite !important;
+}
+#miniBtn .mb-ring circle.r1 {
+  fill: none !important;
+  stroke: #ffd000 !important;
+  stroke-width: 1 !important;
+  stroke-dasharray: 4, 3 !important;
+}
+#miniBtn .mb-ring circle.r2 {
+  fill: none !important;
+  stroke: #ff003c !important;
+  stroke-width: 0.8 !important;
+  stroke-dasharray: 8, 4 !important;
+}
+@keyframes zayroCoinSpinRing {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+#miniBtn .mb-center-bolt {
+  position: relative !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+#miniBtn .bolt-svg {
+  width: 100% !important;
+  height: 100% !important;
+  filter: drop-shadow(0 0 5px rgba(255, 208, 0, 0.9)) !important;
+}
+
+#miniBtn .mb-counter-badge {
+  position: absolute !important;
+  top: -2px !important;
+  right: -2px !important;
+  background: #ffd000 !important;
+  color: #000000 !important;
+  font-size: 7.5px !important;
+  font-weight: 900 !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 0 5px rgba(255, 208, 0, 0.8) !important;
+}
 """
 
 
@@ -409,6 +605,26 @@ class OverlayManager:
     Manages the floating VIP hack overlay injected directly into the live game page during Playwright runs.
     Ensures that when a win occurs, the Congratulations popup has this floating card on top in the screenshot.
     """
+
+    _ball_cache = {}
+
+    @classmethod
+    def get_ball_b64(cls, num: int) -> str:
+        """Loads and caches authentic 3D casino chip base64 image for digit 0-9"""
+        n = int(num) % 10
+        if n in cls._ball_cache:
+            return cls._ball_cache[n]
+
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        asset_file = os.path.join(base_dir, "assets", f"ball_{n}.b64")
+        if os.path.exists(asset_file):
+            try:
+                with open(asset_file, "r", encoding="utf-8") as f:
+                    cls._ball_cache[n] = f.read().strip()
+                    return cls._ball_cache[n]
+            except Exception:
+                pass
+        return ""
 
     @staticmethod
     def get_ball_info(number: Optional[int], choice: str) -> dict:
@@ -420,18 +636,44 @@ class OverlayManager:
 
         if num in (1, 3, 7, 9):
             color = "GREEN"
-            cls = "ball-circle-green"
+            cls_name = "ball-circle-green"
         elif num in (2, 4, 6, 8):
             color = "RED"
-            cls = "ball-circle-red"
+            cls_name = "ball-circle-red"
         elif num == 0:
             color = "RED+VIOLET"
-            cls = "ball-circle-violet"
+            cls_name = "ball-circle-violet"
         else: # 5
             color = "GREEN+VIOLET"
-            cls = "ball-circle-violet"
+            cls_name = "ball-circle-violet"
 
-        return {"number": num, "color": color, "class": cls}
+        return {"number": num, "color": color, "class": cls_name}
+
+    @classmethod
+    def render_hist_chips(cls, current_num: int) -> str:
+        """Generates 6 realistic historical casino mini-chips with authentic 3D textures & B/S pips"""
+        # Alternate realistic historical sequence based on current number
+        sequence = [
+            (current_num + 3) % 10,
+            (current_num + 7) % 10,
+            (current_num + 2) % 10,
+            (current_num + 6) % 10,
+            (current_num + 1) % 10,
+            (current_num + 8) % 10
+        ]
+        chips = []
+        for n in sequence:
+            b64 = cls.get_ball_b64(n)
+            bs = "B" if n >= 5 else "S"
+            bs_cls = "b" if bs == "B" else "s"
+            style = f'style="background-image:url(\'{b64}\');"' if b64 else ""
+            chips.append(
+                f'<div class="h-chip-col">'
+                f'  <div class="h-mini-chip" {style}><span class="h-mini-num">{n}</span></div>'
+                f'  <span class="h-pip {bs_cls}">{bs}</span>'
+                f'</div>'
+            )
+        return "".join(chips)
 
     @classmethod
     def generate_html(
@@ -443,13 +685,10 @@ class OverlayManager:
         number: Optional[int] = None
     ) -> str:
         """
-        Generates the standalone HTML markup for the Zayro VIP Hack Card.
-        If a custom HTML template is uploaded by the admin, it uses/adapts it.
+        Generates the complete authentic HTML markup for the Zayro VIP Hack Card and floating MiniBtn.
         """
         # Check if custom template exists in db or filesystem
         custom_tpl = db_manager.get_custom_html_template()
-        # If it's a full simulator webpage like zayro.html (contains iframe or doctype),
-        # we do NOT inject an iframe/black body into the live game page, we use the pure isolated Zayro card instead.
         if custom_tpl and len(custom_tpl.strip()) > 50:
             if "<iframe" not in custom_tpl and "<!DOCTYPE" not in custom_tpl and "target-game-frame" not in custom_tpl:
                 rendered = custom_tpl
@@ -463,14 +702,18 @@ class OverlayManager:
         choice_clean = choice.strip().upper()
         outcome_class = "big" if choice_clean == "BIG" else "small"
         ball = cls.get_ball_info(number, choice_clean)
+        ball_b64 = cls.get_ball_b64(ball["number"])
         short_issue = str(issue)[-5:] if len(str(issue)) > 5 else str(issue)
         conf_str = f"{float(confidence):.1f}%" if float(confidence) > 0 else "98.8%"
+        hist_chips_html = cls.render_hist_chips(ball["number"])
+
+        ball_img_html = f'<img class="ball-bg-img" id="ballBgImg" src="{ball_b64}" alt="Casino Chip">' if ball_b64 else ''
 
         html = f"""
         <div class="card-outer">
           <!-- SINGLE GOLD LASER RUNNING STROKE -->
-          <svg class="card-stroke" viewBox="0 0 240 180" preserveAspectRatio="none">
-            <rect x="1" y="1" width="238" height="178" pathLength="100" rx="16"/>
+          <svg class="card-stroke" viewBox="0 0 236 215" preserveAspectRatio="none">
+            <rect x="1" y="1" width="234" height="213" pathLength="100" rx="16"/>
           </svg>
 
           <!-- TOP DOCKED PILL BADGE -->
@@ -521,7 +764,13 @@ class OverlayManager:
 
                   <!-- Right: 3D Casino Chip Pedestal -->
                   <div class="res-chip-pedestal">
+                    <div class="pedestal-radar-rings">
+                      <div class="ped-ring ring-outer"></div>
+                      <div class="ped-ring ring-inner"></div>
+                    </div>
+                    <div class="ball-ambient-glow" style="background:radial-gradient(circle, rgba(255, 0, 60, 0.7) 0%, transparent 70%);"></div>
                     <div class="res-ball {ball['class']}" id="resBall">
+                      {ball_img_html}
                       <span class="res-num-text" id="resNumText">{ball['number']}</span>
                     </div>
                     <div class="res-color-pill" id="resColorPill">COLOR: {ball['color']}</div>
@@ -535,9 +784,41 @@ class OverlayManager:
                   <span class="horizon-acc">SAFE LEVEL {level}</span>
                   <span class="horizon-line"></span>
                 </div>
+
+                <!-- 6 Historical Casino Mini-Chips -->
+                <div class="hist-balls-row" id="histBallsRow">
+                  {hist_chips_html}
+                </div>
               </div>
             </div>
+
+            <!-- RED GLOSSY CARD BUTTONS -->
+            <div class="card-buttons">
+              <button id="action-btn" class="analyze" type="button">ANALYZE</button>
+              <button class="hide-btn" id="hideBtn" type="button">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none">
+                  <path d="M1 12S5 5 12 5S23 12 23 12S19 19 12 19S1 12 1 12Z" stroke="#ff3366" stroke-width="2"/>
+                  <circle cx="12" cy="12" r="3" fill="#ff003c"/>
+                  <line x1="2" y1="2" x2="22" y2="22" stroke="#ffffff" stroke-width="2"/>
+                </svg>
+                <span>HIDE</span>
+              </button>
+            </div>
           </div>
+        </div>
+
+        <!-- FLOATING HACK MINI BUTTON -->
+        <div id="miniBtn">
+          <svg class="mb-ring" viewBox="0 0 66 66">
+            <circle class="r1" cx="33" cy="33" r="28"/>
+            <circle class="r2" cx="33" cy="33" r="23"/>
+          </svg>
+          <div class="mb-center-bolt">
+            <svg class="bolt-svg" viewBox="0 0 24 24" fill="none">
+              <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" fill="#ffd000" stroke="#ffffff" stroke-width="1.2"/>
+            </svg>
+          </div>
+          <div class="mb-counter-badge">9K</div>
         </div>
         """
         return html
