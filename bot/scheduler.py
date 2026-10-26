@@ -437,7 +437,7 @@ class WinGoScheduler:
                     target_issue = str(active_pred["issue"])
 
                     matched_item = None
-                    for item in history[:5]:
+                    for item in history[:10]:
                         if str(item["issueNumber"]) == target_issue:
                             matched_item = item
                             break
@@ -463,19 +463,36 @@ class WinGoScheduler:
                                 self.active_session["losses"] += 1
                                 self.active_session["current_streak"] = 0
 
-                        # Broadcast result to channels
-                        await self._broadcast_result(
-                            game_id=game_id,
-                            issue_number=target_issue,
-                            pred_choice=active_pred["choice"],
-                            actual_choice=actual_choice,
-                            actual_number=actual_num,
-                            is_win=is_win,
-                            hit_lucky_number=hit_lucky
-                        )
+                        # Broadcast result to channels with guaranteed state cleanup
+                        try:
+                            await self._broadcast_result(
+                                game_id=game_id,
+                                issue_number=target_issue,
+                                pred_choice=active_pred["choice"],
+                                actual_choice=actual_choice,
+                                actual_number=actual_num,
+                                is_win=is_win,
+                                hit_lucky_number=hit_lucky
+                            )
+                        except Exception as br_err:
+                            logger.error(f"[{game_name}] Error broadcasting result for {target_issue}: {br_err}", exc_info=True)
+                        finally:
+                            state["waiting_result"] = False
+                            state["active_prediction"] = None
 
-                        state["waiting_result"] = False
-                        state["active_prediction"] = None
+                    else:
+                        # Safety Catch: If latest drawn issue is >= target_issue, this round has already finished!
+                        # Never get stuck waiting indefinitely for a past issue.
+                        try:
+                            if int(latest_issue) >= int(target_issue):
+                                logger.warning(
+                                    f"[{game_name}] Round {target_issue} has concluded in the past (Latest drawn: {latest_issue}). "
+                                    f"Clearing waiting state to resume new predictions immediately!"
+                                )
+                                state["waiting_result"] = False
+                                state["active_prediction"] = None
+                        except Exception:
+                            pass
 
                 # 3. Generate and Send Next Prediction
                 if not state["waiting_result"]:
@@ -621,15 +638,22 @@ class WinGoScheduler:
                         custom_template=custom_win_tpl
                     )
 
-                    # Real Playwright screenshot of the actual Congratulations popup
-                    screenshot_stream = await bet_automation.capture_win_screenshot(
-                        game_id=game_id,
-                        target_issue=issue_number,
-                        choice=actual_choice,
-                        actual_number=actual_number,
-                        level=curr_level,
-                        streak=streak
-                    )
+                    # Real Playwright screenshot of the actual Congratulations popup with 6.0s timeout
+                    try:
+                        screenshot_stream = await asyncio.wait_for(
+                            bet_automation.capture_win_screenshot(
+                                game_id=game_id,
+                                target_issue=issue_number,
+                                choice=actual_choice,
+                                actual_number=actual_number,
+                                level=curr_level,
+                                streak=streak
+                            ),
+                            timeout=6.0
+                        )
+                    except (asyncio.TimeoutError, Exception) as s_err:
+                        logger.warning(f"Screenshot delivery fallback: {s_err}")
+                        screenshot_stream = None
 
                     if screenshot_stream:
                         raw_bytes = screenshot_stream.getvalue()

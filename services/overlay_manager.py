@@ -448,15 +448,17 @@ class OverlayManager:
         """
         # Check if custom template exists in db or filesystem
         custom_tpl = db_manager.get_custom_html_template()
+        # If it's a full simulator webpage like zayro.html (contains iframe or doctype),
+        # we do NOT inject an iframe/black body into the live game page, we use the pure isolated Zayro card instead.
         if custom_tpl and len(custom_tpl.strip()) > 50:
-            # Render custom template with placeholders
-            rendered = custom_tpl
-            rendered = rendered.replace("{issue}", str(issue))
-            rendered = rendered.replace("{choice}", choice.upper())
-            rendered = rendered.replace("{confidence}", f"{float(confidence):.1f}")
-            rendered = rendered.replace("{level}", str(level))
-            rendered = rendered.replace("{number}", str(number if number is not None else (7 if choice.upper() == "BIG" else 2)))
-            return rendered
+            if "<iframe" not in custom_tpl and "<!DOCTYPE" not in custom_tpl and "target-game-frame" not in custom_tpl:
+                rendered = custom_tpl
+                rendered = rendered.replace("{issue}", str(issue))
+                rendered = rendered.replace("{choice}", choice.upper())
+                rendered = rendered.replace("{confidence}", f"{float(confidence):.1f}")
+                rendered = rendered.replace("{level}", str(level))
+                rendered = rendered.replace("{number}", str(number if number is not None else (7 if choice.upper() == "BIG" else 2)))
+                return rendered
 
         choice_clean = choice.strip().upper()
         outcome_class = "big" if choice_clean == "BIG" else "small"

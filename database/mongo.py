@@ -1,3 +1,4 @@
+import os
 import logging
 from typing import Optional
 from datetime import datetime
@@ -227,10 +228,49 @@ class DatabaseManager:
 
     def get_custom_html_template(self) -> Optional[str]:
         cfg = self.get_system_settings()
-        return cfg.get("custom_html_template")
+        val = cfg.get("custom_html_template")
+        if not val:
+            return None
+        # If val points to a file or file exists on disk
+        local_path = os.path.join("uploads", "custom_overlay.html")
+        if val == "uploads/custom_overlay.html" or os.path.exists(local_path):
+            try:
+                with open(local_path, "r", encoding="utf-8") as f:
+                    return f.read()
+            except Exception:
+                return None
+        # If huge string is in mongo, migrate to disk to keep database tiny and fast
+        if isinstance(val, str) and len(val) > 2000:
+            try:
+                os.makedirs("uploads", exist_ok=True)
+                with open(local_path, "w", encoding="utf-8") as f:
+                    f.write(val)
+                self.update_system_settings({"custom_html_template": "uploads/custom_overlay.html"})
+                return val
+            except Exception:
+                pass
+        return val
 
     def set_custom_html_template(self, content: Optional[str]):
-        self.update_system_settings({"custom_html_template": content})
+        local_path = os.path.join("uploads", "custom_overlay.html")
+        if not content:
+            self.update_system_settings({"custom_html_template": None})
+            try:
+                if os.path.exists(local_path):
+                    os.remove(local_path)
+            except Exception:
+                pass
+            return
+
+        # Always save content to local disk so Mongo document stays super small and fast
+        try:
+            os.makedirs("uploads", exist_ok=True)
+            with open(local_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            self.update_system_settings({"custom_html_template": "uploads/custom_overlay.html"})
+        except Exception as e:
+            logger.error(f"Error saving custom html template: {e}")
+            self.update_system_settings({"custom_html_template": "active"})
 
     def get_auto_send_apk(self) -> bool:
         cfg = self.get_system_settings()
