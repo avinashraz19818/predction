@@ -420,6 +420,15 @@ class WinGoScheduler:
 
         while self.running:
             try:
+                state = self.game_states[game_id]
+                active_pred = state["active_prediction"]
+
+                # Optimization Guard: Only poll if at least one active channel is listening to this game!
+                active_channels = db_manager.get_channels_by_game(game_id, only_active=True)
+                if not active_channels and not state["waiting_result"]:
+                    await asyncio.sleep(15)
+                    continue
+
                 # 1. Fetch live history
                 history = await lottery_api.fetch_history(game_id)
                 if not history or len(history) < 2:
@@ -428,9 +437,6 @@ class WinGoScheduler:
 
                 latest_item = history[0]
                 latest_issue = str(latest_item["issueNumber"])
-
-                state = self.game_states[game_id]
-                active_pred = state["active_prediction"]
 
                 # 2. Check Result of Active Prediction
                 if state["waiting_result"] and active_pred:

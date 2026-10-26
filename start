@@ -11,6 +11,7 @@ if [ -f "$PID_FILE" ]; then
 fi
 
 pkill -f ".*${BOT_FILE}" 2>/dev/null || true
+sleep 2
 
 if [ -d ".venv" ]; then
     . .venv/bin/activate
