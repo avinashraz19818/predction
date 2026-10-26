@@ -23,6 +23,10 @@ fi
 
 if [ -d ".venv" ]; then
     . .venv/bin/activate
+elif [ -d "../.venv" ]; then
+    . ../.venv/bin/activate
+elif [ -d "$HOME/.venv" ]; then
+    . "$HOME/.venv/bin/activate"
 fi
 
 # Only try downloading playwright chromium if system Chrome is not already installed
