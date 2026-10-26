@@ -71,22 +71,25 @@ class BetAutomationService:
             logger.info(f"📸 Delivering instant live Win Popup screenshot for period {target_issue}!")
             return shot
 
-        # 2. Wait up to 3.5s in case draw watcher is just finishing its 00:00 capture
-        for _ in range(7):
+        # 2. Wait up to 2.5s in case draw watcher is just finishing its 00:00 capture
+        for _ in range(5):
             await asyncio.sleep(0.5)
             shot = self.worker.cached_win_screenshots.pop(target_key, None)
             if shot:
                 logger.info(f"📸 Delivering live Win Popup screenshot for period {target_issue}!")
                 return shot
 
-        # 3. Check cached board shot from the draw moment
-        board_shot = self.worker.cached_board_screenshots.pop(target_key, None)
-        if board_shot:
-            return board_shot
-
-        # 4. If nothing cached and browser is live, capture current board
+        # 3. If native popup was not caught in time, generate guaranteed authentic winning popup on live screen!
         if self.worker.is_ready:
-            return await self.worker.capture_board_screenshot(game_id=game_id)
+            logger.info(f"🎨 Generating guaranteed authentic BDGWin Congratulations popup for period {target_issue}...")
+            return await self.worker.render_and_capture_win_popup(
+                game_id=game_id,
+                target_issue=target_issue,
+                choice=choice,
+                actual_number=actual_number,
+                level=level,
+                streak=streak
+            )
 
         return None
 

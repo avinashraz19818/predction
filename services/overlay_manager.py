@@ -523,6 +523,211 @@ ZAYRO_CSS = """
 """
 
 
+
+WIN_POPUP_CSS = """
+#bdgwin-win-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.68) !important;
+  z-index: 999990 !important;
+  backdrop-filter: blur(2px) !important;
+  pointer-events: none !important;
+}
+
+#bdgwin-win-modal {
+  position: fixed !important;
+  top: 55% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 320px !important;
+  z-index: 999995 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
+}
+
+#bdgwin-win-modal * {
+  box-sizing: border-box !important;
+  margin: 0;
+  padding: 0;
+}
+
+#bdgwin-win-modal .win-halo {
+  width: 76px !important;
+  height: 76px !important;
+  margin: 0 auto -38px auto !important;
+  position: relative !important;
+  z-index: 10 !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle, #fff3a8 0%, #ffb800 60%, #e06c00 100%) !important;
+  box-shadow: 0 0 30px rgba(255, 184, 0, 0.9), 0 4px 14px rgba(0, 0, 0, 0.6) !important;
+  border: 2.5px solid #fff8d4 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#bdgwin-win-modal .halo-inner {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#bdgwin-win-modal .halo-txt {
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  color: #ffffff !important;
+  letter-spacing: 0.1em !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+  line-height: 1 !important;
+  margin-top: 1px !important;
+}
+
+#bdgwin-win-modal .win-card-body {
+  background: linear-gradient(180deg, #ff7a42 0%, #f04e37 42%, #e02d28 100%) !important;
+  border: 2px solid #ffd875 !important;
+  border-radius: 26px !important;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.85), 0 0 35px rgba(240, 78, 55, 0.5) !important;
+  padding: 44px 18px 16px 18px !important;
+  text-align: center !important;
+  position: relative !important;
+}
+
+#bdgwin-win-modal .win-title {
+  font-size: 23px !important;
+  font-weight: 900 !important;
+  color: #ffffff !important;
+  letter-spacing: 0.03em !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45) !important;
+  margin-bottom: 12px !important;
+}
+
+#bdgwin-win-modal .lottery-res-label {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #ffe8d1 !important;
+  margin-bottom: 7px !important;
+}
+
+#bdgwin-win-modal .lottery-pills-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  margin-bottom: 14px !important;
+}
+
+#bdgwin-win-modal .res-pill-color {
+  padding: 3px 12px !important;
+  border-radius: 12px !important;
+  color: #ffffff !important;
+  font-size: 11.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+#bdgwin-win-modal .res-pill-num {
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+  border: 1.5px solid #ffffff !important;
+}
+
+#bdgwin-win-modal .res-pill-bs {
+  padding: 3px 14px !important;
+  border-radius: 12px !important;
+  color: #ffffff !important;
+  font-size: 11.5px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+#bdgwin-win-modal .col-green { background: #27ae60 !important; }
+#bdgwin-win-modal .col-red { background: #e74c3c !important; }
+#bdgwin-win-modal .col-violet { background: linear-gradient(135deg, #e74c3c 50%, #8e44ad 50%) !important; }
+#bdgwin-win-modal .col-green-violet { background: linear-gradient(135deg, #27ae60 50%, #8e44ad 50%) !important; }
+
+#bdgwin-win-modal .bs-big { background: #f39c12 !important; }
+#bdgwin-win-modal .bs-small { background: #2980b9 !important; }
+
+#bdgwin-win-modal .bonus-ticket {
+  background: linear-gradient(180deg, #ffffff 0%, #fffdf7 100%) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  position: relative !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  overflow: hidden !important;
+}
+
+#bdgwin-win-modal .ticket-notch {
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  background: #e83a30 !important;
+}
+#bdgwin-win-modal .notch-l { left: -7px !important; }
+#bdgwin-win-modal .notch-r { right: -7px !important; }
+
+#bdgwin-win-modal .bonus-lbl {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  color: #888888 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  margin-bottom: 2px !important;
+}
+
+#bdgwin-win-modal .bonus-amt {
+  font-size: 26px !important;
+  font-weight: 900 !important;
+  color: #e74c3c !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.1 !important;
+}
+
+#bdgwin-win-modal .period-info {
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  color: #777777 !important;
+  margin-top: 5px !important;
+}
+
+#bdgwin-win-modal .auto-close-lbl {
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  color: #ffe6c7 !important;
+  margin-top: 8px !important;
+  opacity: 0.9 !important;
+}
+
+#bdgwin-win-modal .win-close-circle {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.75) !important;
+  margin: 14px auto 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(0, 0, 0, 0.25) !important;
+}
+"""
+
+
 class OverlayManager:
     """
     Manages the floating VIP hack overlay injected directly into the live game page during Playwright runs.
@@ -741,6 +946,84 @@ class OverlayManager:
                 <span>HIDE</span>
               </button>
             </div>
+          </div>
+        </div>
+        """
+        return html
+
+    @classmethod
+    def generate_win_popup_html(
+        cls,
+        issue: str,
+        choice: str,
+        actual_number: int,
+        level: int = 1,
+        game_name: str = "WinGo 1 Min"
+    ) -> str:
+        """
+        Generates the authentic BDGWin 'Congratulations' Winning Popup HTML
+        with golden WIN trophy, lottery result pills, ivory bonus ticket, and auto-close timer.
+        """
+        num = int(actual_number) % 10
+        if num in (1, 3, 7, 9):
+            color_name = "Green"
+            col_cls = "col-green"
+        elif num in (2, 4, 6, 8):
+            color_name = "Red"
+            col_cls = "col-red"
+        elif num == 0:
+            color_name = "Red Violet"
+            col_cls = "col-violet"
+        else: # 5
+            color_name = "Green Violet"
+            col_cls = "col-green-violet"
+
+        bs_text = "Big" if choice.upper() == "BIG" else "Small"
+        bs_cls = "bs-big" if choice.upper() == "BIG" else "bs-small"
+
+        base_bet = 1000
+        bet_amount = base_bet * (2 ** max(0, level - 1))
+        ratio = 1.47 if num in (0, 5) else 1.96
+        bonus_val = bet_amount * ratio
+        bonus_str = f"{bonus_val:,.2f}"
+
+        html = f"""
+        <div id="bdgwin-win-backdrop"></div>
+        <div id="bdgwin-win-modal">
+          <div class="win-halo">
+            <div class="halo-inner">
+              <svg viewBox="0 0 24 24" width="30" height="30" fill="none">
+                <path d="M7 4V2H17V4H20C21.1 4 22 4.9 22 6V8C22 10.2 20.2 12 18 12H16.9C16.4 13.7 15 15.1 13.2 15.7V19H16V21H8V19H10.8V15.7C9 15.1 7.6 13.7 7.1 12H6C3.8 12 2 10.2 2 8V6C2 4.9 2.9 4 4 4H7ZM4 6V8C4 9.1 4.9 10 6 10H7.1V6H4ZM18 10C19.1 10 20 9.1 20 8V6H16.9V10H18Z" fill="#ffffff"/>
+              </svg>
+              <span class="halo-txt">WIN</span>
+            </div>
+          </div>
+
+          <div class="win-card-body">
+            <div class="win-title">Congratulations</div>
+            <div class="lottery-res-label">Lottery results</div>
+            <div class="lottery-pills-row">
+              <span class="res-pill-color {col_cls}">{color_name}</span>
+              <span class="res-pill-num {col_cls}">{num}</span>
+              <span class="res-pill-bs {bs_cls}">{bs_text}</span>
+            </div>
+
+            <div class="bonus-ticket">
+              <div class="ticket-notch notch-l"></div>
+              <div class="ticket-notch notch-r"></div>
+              <div class="bonus-lbl">Bonus</div>
+              <div class="bonus-amt">+₹{bonus_str}</div>
+              <div class="period-info">Period: {game_name} {issue}</div>
+            </div>
+
+            <div class="auto-close-lbl">3 seconds auto close</div>
+          </div>
+
+          <div class="win-close-circle">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="#ffffff" stroke-width="2.5" fill="none">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
           </div>
         </div>
         """

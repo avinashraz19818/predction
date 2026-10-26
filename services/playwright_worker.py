@@ -51,17 +51,20 @@ CLOSE_SELECTORS = [
 ]
 
 WIN_POPUP_JS = """() => {
-    const w = document.querySelector('.winning');
-    if (w && w.style.display !== 'none' && (w.offsetWidth > 0 || w.offsetHeight > 0)) {
-        return true;
-    }
-    const b = document.querySelector('.winning-body.isWin, .winning-wrap-l1.isWin, .WinningTip__C');
-    if (b && (b.offsetParent !== null || b.offsetWidth > 0)) {
-        return true;
-    }
-    const pop = document.querySelector('.van-dialog, .win-popup, .Winning-Popup');
-    if (pop && pop.offsetParent !== null && pop.textContent.includes('Congratulations')) {
-        return true;
+    const winEls = document.querySelectorAll(
+        '.winning, .winning-modal, .winning-wrap, .winning-body, .isWin, .WinningTip__C, .Winning-Popup, .win-popup, .van-popup, .van-dialog, [class*="winning"], [class*="congratul"]'
+    );
+    for (const el of winEls) {
+        if (!el || el.id === 'zayro-vip-overlay' || el.closest('#zayro-vip-overlay')) continue;
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 50 && rect.height > 50) {
+            const txt = (el.innerText || el.textContent || '').toLowerCase();
+            if (txt.includes('congratul') || txt.includes('bonus') || txt.includes('lottery result') || el.classList.contains('isWin')) {
+                return true;
+            }
+        }
     }
     return false;
 }"""
@@ -425,20 +428,26 @@ class PlaywrightWinGoWorker:
     def _parse_countdown(text: str) -> Optional[int]:
         if not text:
             return None
+        import re
+        # 1. Match spaced or standard mm:ss (e.g. '0 0 : 5 8' or '00:58')
+        m = re.search(r'(\d)\s*(\d)\s*[:：]\s*(\d)\s*(\d)', text)
+        if m:
+            mm = int(m.group(1)) * 10 + int(m.group(2))
+            ss = int(m.group(3)) * 10 + int(m.group(4))
+            val = mm * 60 + ss
+            return val if val <= 300 else None
+
+        # 2. Match standard mm:ss (e.g. '0:58' or '01:30')
+        m2 = re.search(r'(\d{1,2})\s*[:：]\s*(\d{2})', text)
+        if m2:
+            val = int(m2.group(1)) * 60 + int(m2.group(2))
+            return val if val <= 300 else None
+
+        # 3. Match pure 1-2 digits (e.g. '58' or '30')
         digits = ''.join(filter(str.isdigit, text))
-        if not digits:
-            return None
-        if len(digits) >= 4:
-            mm = digits[-4:-2]
-            ss = digits[-2:]
-            try:
-                return int(mm) * 60 + int(ss)
-            except ValueError:
-                return None
-        try:
+        if digits and len(digits) <= 2:
             return int(digits)
-        except ValueError:
-            return None
+        return None
 
     async def seconds_left(self) -> Optional[int]:
         """Reads the exact remaining seconds on the live board"""
@@ -526,16 +535,26 @@ class PlaywrightWinGoWorker:
         choice: str = "BIG",
         level: int = 1,
         confidence: float = 98.7,
-        number: Optional[int] = None
+        number: Optional[int] = None,
+        game_id: str = "wingo_1m"
     ):
         """
         Runs right after placing bet!
         Sleeps until countdown reaches 2s before draw, then runs an ultra-fast 50ms loop
         to catch the real 'Congratulations' Winning Popup in the exact 3-second window!
+        If missed or unshown by site, immediately generates guaranteed authentic winning popup!
         """
         secs = await self.seconds_left()
-        if secs is None:
-            secs = 40
+        max_sec = 60
+        if "30s" in str(game_id):
+            max_sec = 30
+        elif "3m" in str(game_id):
+            max_sec = 180
+        elif "5m" in str(game_id):
+            max_sec = 300
+
+        if secs is None or secs > max_sec:
+            secs = min(max_sec, 40)
 
         logger.info(f"⏱️ Live Round Watcher: {secs}s remaining until draw for period {target_issue}...")
 
@@ -547,7 +566,7 @@ class PlaywrightWinGoWorker:
         logger.info(f"👀 Draw happening NOW for {target_issue}! Fast 50ms Win Popup detector active...")
 
         # Ultra-fast polling at 50ms intervals
-        deadline = time.time() + 14.0
+        deadline = time.time() + 12.0
         popup_detected = False
 
         while time.time() < deadline:
@@ -561,7 +580,7 @@ class PlaywrightWinGoWorker:
             await asyncio.sleep(0.05)
 
         if popup_detected:
-            logger.info(f"🎉 REAL CONGRATULATIONS WIN POPUP DETECTED for {target_issue}! Capturing at once...")
+            logger.info(f"🎉 REAL IN-GAME CONGRATULATIONS WIN POPUP DETECTED for {target_issue}! Capturing at once...")
             # Ensure VIP Hack overlay is rendered on top of the Congratulations popup!
             await self.inject_prediction_overlay(
                 issue=target_issue,
@@ -582,21 +601,104 @@ class PlaywrightWinGoWorker:
             except Exception as e:
                 logger.error(f"Error taking popup screenshot: {e}")
         else:
-            logger.info(f"ℹ️ Popup not shown for {target_issue} (missed or loss). Caching live board shot...")
-            try:
-                await self.inject_prediction_overlay(
-                    issue=target_issue,
-                    choice=choice,
-                    confidence=confidence,
-                    level=level,
-                    number=number
-                )
-                shot_bytes = await self.page.screenshot(type="png", full_page=False)
-                buf = io.BytesIO(shot_bytes)
-                buf.seek(0)
-                self.cached_board_screenshots[str(target_issue)] = buf
-            except Exception:
-                pass
+            logger.info(f"ℹ️ Native popup not caught for {target_issue}. Injecting authentic BDGWin Congratulations popup...")
+            buf = await self.render_and_capture_win_popup(
+                game_id=game_id,
+                target_issue=target_issue,
+                choice=choice,
+                actual_number=number if number is not None else (7 if choice.upper() == "BIG" else 2),
+                level=level,
+                streak=1,
+                confidence=confidence
+            )
+            if buf:
+                self.cached_win_screenshots[str(target_issue)] = buf
+
+    async def render_and_capture_win_popup(
+        self,
+        game_id: str,
+        target_issue: str,
+        choice: str = "BIG",
+        actual_number: int = 7,
+        level: int = 1,
+        streak: int = 1,
+        confidence: float = 95.0
+    ) -> Optional[io.BytesIO]:
+        """
+        Guaranteed 100% win screenshot delivery:
+        Injects the authentic BDGWin 'Congratulations' popup and the floating Zayro VIP Hack card
+        directly onto the live game screen, captures the screenshot, and cleans up.
+        """
+        if not self.page:
+            return None
+        try:
+            from services.overlay_manager import overlay_manager, WIN_POPUP_CSS, ZAYRO_CSS
+
+            # Map game name
+            game_name = "WinGo 1 Min"
+            if "30s" in str(game_id):
+                game_name = "WinGo 30s"
+            elif "3m" in str(game_id):
+                game_name = "WinGo 3 Min"
+            elif "5m" in str(game_id):
+                game_name = "WinGo 5 Min"
+
+            # 1. Generate Winning Popup HTML
+            popup_html = overlay_manager.generate_win_popup_html(
+                issue=str(target_issue),
+                choice=choice,
+                actual_number=actual_number,
+                level=level,
+                game_name=game_name
+            )
+
+            # 2. Inject Winning Popup into DOM
+            await self.page.evaluate("""({html, css}) => {
+                let s = document.getElementById('bdgwin-win-popup-style');
+                if (!s) {
+                    s = document.createElement('style');
+                    s.id = 'bdgwin-win-popup-style';
+                    document.head.appendChild(s);
+                }
+                s.textContent = css;
+
+                let wrap = document.getElementById('bdgwin-win-popup-wrap');
+                if (!wrap) {
+                    wrap = document.createElement('div');
+                    wrap.id = 'bdgwin-win-popup-wrap';
+                    document.body.appendChild(wrap);
+                }
+                wrap.innerHTML = html;
+                wrap.style.display = 'block';
+            }""", {"html": popup_html, "css": WIN_POPUP_CSS})
+
+            # 3. Inject VIP Hack Card on top
+            await self.inject_prediction_overlay(
+                issue=str(target_issue),
+                choice=choice,
+                confidence=confidence,
+                level=level,
+                number=actual_number
+            )
+
+            await asyncio.sleep(0.15)
+            shot_bytes = await self.page.screenshot(type="png", full_page=False)
+
+            # 4. Clean up Winning Popup from page so live game continues smoothly
+            await self.page.evaluate("""() => {
+                const w = document.getElementById('bdgwin-win-popup-wrap');
+                if (w) w.remove();
+                const s = document.getElementById('bdgwin-win-popup-style');
+                if (s) s.remove();
+            }""")
+
+            buf = io.BytesIO(shot_bytes)
+            buf.seek(0)
+            logger.info(f"📸 Guaranteed Win Popup Screenshot with VIP Overlay generated for period {target_issue}!")
+            return buf
+        except Exception as e:
+            logger.error(f"Error rendering win popup screenshot: {e}")
+            return None
 
     # ------------------------------------------------------------------ #
     #  Bet Amount & Multiplier Setter (smex logic)
@@ -747,7 +849,8 @@ class PlaywrightWinGoWorker:
                         choice=choice,
                         level=level,
                         confidence=confidence,
-                        number=number
+                        number=number,
+                        game_id=game_id
                     ))
 
                     return {"ok": True, "choice": choice.upper(), "issue": issue_number, "amount": target_amount}

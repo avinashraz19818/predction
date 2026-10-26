@@ -669,7 +669,7 @@ class WinGoScheduler:
                         custom_template=custom_win_tpl
                     )
 
-                    # Real Playwright screenshot of the actual Congratulations popup with 6.0s timeout
+                    # Real Playwright screenshot of the actual Congratulations popup with 8.5s timeout
                     try:
                         screenshot_stream = await asyncio.wait_for(
                             bet_automation.capture_win_screenshot(
@@ -680,7 +680,7 @@ class WinGoScheduler:
                                 level=curr_level,
                                 streak=streak
                             ),
-                            timeout=6.0
+                            timeout=8.5
                         )
                     except (asyncio.TimeoutError, Exception) as s_err:
                         logger.warning(f"Screenshot delivery fallback: {s_err}")
