@@ -389,34 +389,5 @@ class UserbotManager:
             parse_mode=enums.ParseMode.HTML
         )
 
-    async def send_channel_sticker(
-        self,
-        chat_id: Union[int, str],
-        sticker: str
-    ) -> Any:
-        """Sends sticker to channel via Userbot"""
-        if not self.is_active():
-            raise RuntimeError("Userbot is not active")
-        peer = await self._resolve_peer(chat_id)
-        return await self.client.send_sticker(chat_id=peer, sticker=sticker)
-
-    async def send_channel_document(
-        self,
-        chat_id: Union[int, str],
-        document: str,
-        caption: Optional[str] = None
-    ) -> Any:
-        """Sends document file to channel via Userbot"""
-        if not self.is_active():
-            raise RuntimeError("Userbot is not active")
-        peer = await self._resolve_peer(chat_id)
-        pyr_caption = format_for_pyrogram(caption) if caption else None
-        return await self.client.send_document(
-            chat_id=peer,
-            document=document,
-            caption=pyr_caption,
-            parse_mode=enums.ParseMode.HTML if pyr_caption else None
-        )
-
 # Global singleton instance
 userbot_manager = UserbotManager()

@@ -24,14 +24,9 @@ from bot.keyboards import (
     get_bet_amount_keyboard,
     get_templates_menu_keyboard,
     get_apk_overlay_keyboard,
-    get_userbot_keyboard,
-    get_hack_menu_keyboard,
-    get_stickers_manage_keyboard,
-    get_win_caption_keyboard
+    get_userbot_keyboard
 )
 from bot.templates import (
-    DEFAULT_HACK_SIGNAL_TEMPLATE,
-    render_hack_signal_card,
     DEFAULT_PREDICTION_TEMPLATE,
     DEFAULT_WIN_TEMPLATE,
     DEFAULT_LOSS_TEMPLATE,
@@ -71,13 +66,9 @@ def _get_admin_panel_text(user_first_name: str) -> str:
     else:
         ub_badge = "⚪ Inactive (/login to connect)"
 
-    strat = db_manager.get_bot_strategy()
-    strat_str = "🔥 SureShot Hack (Dual Bet 100% Win)" if strat == "sure_shot_hack" else "🎯 Standard AI (Big/Small)"
-
     return f"""👑 <b>𝗪𝗜𝗡𝗚𝗢 𝗔𝗜 𝗣𝗥𝗘𝗗𝗜𝗖𝗧𝗜𝗢𝗡 𝗔𝗗𝗠𝗜𝗡 𝗣𝗔𝗡𝗘𝗟</b> 👑
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 👋 Welcome, <b>{safe_name}</b>!
-🎯 <b>Strategy:</b> <code>{strat_str}</code>
 ⚡ <b>Operating Mode:</b> <code>{mode_str}</code>
 💰 <b>Base Bet:</b> <code>₹{base_bet}</code> (Martingale: <b>{martingale_mult}X</b>)
 🛡️ <b>Max Public Loss Cards:</b> <b>Level {max_loss}</b> (Anti-Loss Protection)
@@ -128,33 +119,8 @@ def _get_main_keyboard():
         base_bet=db_manager.get_base_bet_amount(),
         martingale_mult=db_manager.get_martingale_multiplier(),
         max_loss_cards=db_manager.get_max_loss_display_level(),
-        auto_clean_loss=db_manager.get_auto_clean_loss(),
-        strategy=db_manager.get_bot_strategy()
+        auto_clean_loss=db_manager.get_auto_clean_loss()
     )
-
-def _get_hack_menu_text() -> str:
-    cfg = db_manager.get_system_settings()
-    strat = db_manager.get_bot_strategy()
-    strat_badge = "🔥 SureShot Hack (ACTIVE)" if strat == "sure_shot_hack" else "🎯 Standard AI (Inactive)"
-    sig_tpl = db_manager.get_hack_signal_template() or DEFAULT_HACK_SIGNAL_TEMPLATE
-    send_apk = "✅ YES (Auto-sends APK with Signal)" if db_manager.get_hack_send_apk() else "❌ NO (Signal only)"
-    cap = db_manager.get_hack_win_caption()
-    cap_text = f"\n<code>{html.escape(cap)}</code>" if cap else " <i>(Clean screenshot only, no text caption)</i>"
-    stickers = db_manager.get_win_stickers()
-    base_bet = db_manager.get_base_bet_amount()
-
-    return f"""⚡ <b>𝗦𝗨𝗥𝗘-𝗦𝗛𝗢𝗧 𝗛𝗔𝗖𝗞 & 𝗗𝗨𝗔𝗟-𝗕𝗘𝗧 𝗦𝗘𝗧𝗧𝗜𝗡𝗚𝗦</b> ⚡
-━━━━━━━━━━━━━━━━━━━━━━━━━
-🎯 <b>Current Strategy:</b> <code>{strat_badge}</code>
-💰 <b>Dual Bet Amount:</b> <code>₹{base_bet}</code> (Placed on BOTH Big & Small = 100% Guaranteed Win!)
-📱 <b>Auto-Send APK with Signal:</b> <code>{send_apk}</code>
-🖼️ <b>Win Screenshot Caption:</b>{cap_text}
-🎉 <b>Configured Win Stickers:</b> <code>{len(stickers)} Sticker(s)</code>
-━━━━━━━━━━━━━━━━━━━━━━━━━
-📝 <b>Current Signal Message Template:</b>
-<pre>{html.escape(sig_tpl)}</pre>
-━━━━━━━━━━━━━━━━━━━━━━━━━
-<i>When SureShot Hack is active, signals send this message without Big/Small, place bets on BOTH sides, and deliver genuine win screenshots with stickers every round!</i>"""
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -997,121 +963,6 @@ Send your Channel ID or Username now:"""
             reply_markup=get_userbot_keyboard(status["active"])
         )
 
-    # 23. Strategy Mode Toggle
-    elif data == "admin_toggle_strategy":
-        curr_strat = db_manager.get_bot_strategy()
-        new_strat = "standard" if curr_strat == "sure_shot_hack" else "sure_shot_hack"
-        db_manager.set_bot_strategy(new_strat)
-        alert_txt = "🔥 SureShot Hack Mode ACTIVATED! (Dual Bet 100% Win)" if new_strat == "sure_shot_hack" else "🎯 Standard AI Prediction Mode Activated!"
-        await query.answer(alert_txt, show_alert=True)
-        text = _get_admin_panel_text(user.first_name)
-        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=_get_main_keyboard())
-
-    # 24. SureShot Hack Menu
-    elif data == "admin_hack_menu":
-        text = _get_hack_menu_text()
-        strat = db_manager.get_bot_strategy()
-        send_apk = db_manager.get_hack_send_apk()
-        has_win_cap = bool(db_manager.get_hack_win_caption())
-        stickers_count = len(db_manager.get_win_stickers())
-        base_bet = db_manager.get_base_bet_amount()
-        kb = get_hack_menu_keyboard(strat, send_apk, has_win_cap, stickers_count, base_bet)
-        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=kb)
-
-    elif data == "toggle_hack_apk":
-        curr = db_manager.get_hack_send_apk()
-        db_manager.set_hack_send_apk(not curr)
-        await query.answer(f"Send APK with Signal: {'ON' if not curr else 'OFF'}!", show_alert=True)
-        text = _get_hack_menu_text()
-        strat = db_manager.get_bot_strategy()
-        send_apk = db_manager.get_hack_send_apk()
-        has_win_cap = bool(db_manager.get_hack_win_caption())
-        stickers_count = len(db_manager.get_win_stickers())
-        base_bet = db_manager.get_base_bet_amount()
-        kb = get_hack_menu_keyboard(strat, send_apk, has_win_cap, stickers_count, base_bet)
-        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=kb)
-
-    elif data == "input_hack_signal_tpl":
-        admin_states[user.id] = {"state": "waiting_hack_signal_tpl"}
-        curr_tpl = db_manager.get_hack_signal_template() or DEFAULT_HACK_SIGNAL_TEMPLATE
-        text = f"""📝 <b>Edit SureShot Signal Template</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Current Template:
-<pre>{html.escape(curr_tpl)}</pre>
-
-<b>Available Placeholders:</b>
-• <code>{{issue_short}}</code> — Last 3 digits of period (e.g. 980)
-• <code>{{issue}}</code> — Full period number (e.g. 20261028100010980)
-• <code>{{game_name}}</code> — Game name (e.g. WinGo 30s)
-
-Send your new template message text below:
-<i>(Send <code>/cancel</code> to abort)</i>"""
-        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data="admin_hack_menu")]]
-        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
-
-    elif data == "menu_hack_caption":
-        curr_cap = db_manager.get_hack_win_caption()
-        cap_disp = f"\n<code>{html.escape(curr_cap)}</code>" if curr_cap else " <i>(Clean screenshot only, no text caption)</i>"
-        text = f"""🖼️ <b>Win Screenshot Caption Setting</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Current Caption:{cap_disp}
-
-• If a caption is set, winning screenshots will be sent with this caption.
-• If no caption is set, the bot sends ONLY the raw screenshot image!"""
-        kb = get_win_caption_keyboard(bool(curr_cap))
-        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=kb)
-
-    elif data == "input_hack_win_caption":
-        admin_states[user.id] = {"state": "waiting_hack_win_caption"}
-        text = """✏️ <b>Enter Winning Screenshot Caption</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Send the text you want attached as the caption for the winning screenshot.
-HTML is supported.
-
-<i>(Send <code>/cancel</code> to abort)</i>"""
-        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data="menu_hack_caption")]]
-        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
-
-    elif data == "clear_hack_win_caption":
-        db_manager.set_hack_win_caption(None)
-        await query.answer("Caption cleared! Bot will send clean screenshots only.", show_alert=True)
-        text = """🖼️ <b>Win Screenshot Caption Setting</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Current Caption: <i>(Clean screenshot only, no text caption)</i>
-
-The bot will now send ONLY the winning screenshot without any caption."""
-        kb = get_win_caption_keyboard(False)
-        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=kb)
-
-    elif data == "admin_manage_stickers":
-        stickers = db_manager.get_win_stickers()
-        text = f"""🎉 <b>Manage Winning Stickers</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Total Configured: <b>{len(stickers)} Sticker(s)</b>
-
-After the winning screenshot is posted to the channel, the bot sends these celebratory stickers right after it!"""
-        kb = get_stickers_manage_keyboard(len(stickers))
-        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=kb)
-
-    elif data == "add_win_sticker":
-        admin_states[user.id] = {"state": "waiting_win_sticker"}
-        text = """🎉 <b>Add Winning Sticker</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━
-👉 Forward or send any Telegram Sticker here right now that you want sent to the channel after each win!
-
-<i>(Send <code>/cancel</code> to abort)</i>"""
-        keyboard = [[InlineKeyboardButton("⬅️ Cancel", callback_data="admin_manage_stickers")]]
-        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard))
-
-    elif data == "clear_win_stickers":
-        db_manager.clear_win_stickers()
-        await query.answer("All win stickers cleared!", show_alert=True)
-        text = """🎉 <b>Manage Winning Stickers</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Total Configured: <b>0 Stickers</b> (None set)"""
-        kb = get_stickers_manage_keyboard(0)
-        await query.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=kb)
-
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if not is_admin(user.id):
@@ -1119,25 +970,9 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = (update.message.text or "").strip()
     doc = update.message.document
-    sticker = update.message.sticker
     state_info = admin_states.get(user.id)
     current_state = state_info.get("state") if state_info else None
     cfg = db_manager.get_system_settings()
-
-    # Sticker upload handler (Win Stickers)
-    if sticker and current_state == "waiting_win_sticker":
-        admin_states.pop(user.id, None)
-        stk_id = sticker.file_id
-        all_stks = db_manager.add_win_sticker(stk_id)
-        await update.message.reply_text(
-            f"✅ <b>Win Sticker Added Successfully!</b>\n\n"
-            f"🎉 Total Configured: <b>{len(all_stks)} Sticker(s)</b>\n"
-            f"🆔 Sticker ID: <code>{stk_id}</code>\n\n"
-            f"This sticker will now be sent automatically after each winning screenshot!",
-            parse_mode=ParseMode.HTML,
-            reply_markup=_get_main_keyboard()
-        )
-        return
 
     # Document upload handlers (APK & HTML)
     if doc and doc.file_name and doc.file_name.lower().endswith(".apk"):
@@ -1324,36 +1159,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.HTML,
             reply_markup=_get_main_keyboard()
         )
-        return
-
-    # Case: SureShot Signal Template Text
-    if current_state == "waiting_hack_signal_tpl":
-        admin_states.pop(user.id, None)
-        raw_text = (update.message.text_html or update.message.text or "").strip()
-        if raw_text:
-            db_manager.set_hack_signal_template(raw_text)
-            await update.message.reply_text(
-                f"✅ <b>SureShot Signal Template Updated!</b>\n\n<pre>{html.escape(raw_text)}</pre>",
-                parse_mode=ParseMode.HTML,
-                reply_markup=_get_main_keyboard()
-            )
-        else:
-            await update.message.reply_text("❌ Template cannot be empty.", reply_markup=_get_main_keyboard())
-        return
-
-    # Case: SureShot Win Caption Text
-    elif current_state == "waiting_hack_win_caption":
-        admin_states.pop(user.id, None)
-        raw_caption = (update.message.text_html or update.message.text or "").strip()
-        db_manager.set_hack_win_caption(raw_caption or None)
-        if raw_caption:
-            await update.message.reply_text(
-                f"✅ <b>Winning Screenshot Caption Saved!</b>\n\n<b>Preview:</b>\n{raw_caption}",
-                parse_mode=ParseMode.HTML,
-                reply_markup=_get_main_keyboard()
-            )
-        else:
-            await update.message.reply_text("✅ <b>Caption Cleared!</b> (Clean screenshot only will be sent)", reply_markup=_get_main_keyboard())
         return
 
     # Case 1: Channel ID received

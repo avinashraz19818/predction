@@ -13,7 +13,6 @@ from services.lottery_api import lottery_api
 from services.bet_automation import bet_automation
 from engine.predictor import predictor
 from bot.templates import (
-    render_hack_signal_card,
     render_prediction_card,
     render_win_card,
     render_loss_card,
@@ -206,36 +205,7 @@ class WinGoScheduler:
             logger.error(f"❌ Failed to send photo to {channel_id}: {te}")
             return None
 
-    async def _safe_send_sticker(self, channel_id: int | str, sticker_id: str):
-        try:
-            if userbot_manager.is_active():
-                try:
-                    return await userbot_manager.send_channel_sticker(channel_id, sticker_id)
-                except Exception as ue:
-                    logger.debug(f"Userbot send sticker fallback: {ue}")
-            return await self.bot.send_sticker(chat_id=channel_id, sticker=sticker_id)
-        except Exception as e:
-            logger.warning(f"Failed to send sticker to {channel_id}: {e}")
-            return None
-
-    async def _safe_send_document(self, channel_id: int | str, document: str, caption: str = None):
-        try:
-            if userbot_manager.is_active():
-                try:
-                    return await userbot_manager.send_channel_document(channel_id, document, caption)
-                except Exception as ue:
-                    logger.debug(f"Userbot send document fallback: {ue}")
-            return await self.bot.send_document(
-                chat_id=channel_id,
-                document=document,
-                caption=caption,
-                parse_mode=ParseMode.HTML if caption else None
-            )
-        except Exception as e:
-            logger.warning(f"Failed to send document to {channel_id}: {e}")
-            return None
-
-    # ================= SESSION SCHEDULER CONTROLLER ================
+    # ================= SESSION SCHEDULER CONTROLLER =================
 
     def _now_ist(self) -> datetime:
         return datetime.now(self.tz)
@@ -599,43 +569,26 @@ class WinGoScheduler:
                             "created_at": datetime.utcnow().isoformat()
                         }
 
-                        is_hack_mode = db_manager.is_hack_strategy()
+                        logger.info(f"[{game_name}] New Signal for {next_issue}: {pred_data['choice']} Numbers: {pred_data['numbers']} ({pred_data['confidence']}%)")
 
-                        if is_hack_mode:
-                            logger.info(f"[{game_name}] 🔥 SureShot Hack Active for {next_issue}! Placing Dual Bet on Big & Small...")
-                            if bet_automation.enabled and bet_automation.is_logged_in:
-                                asyncio.create_task(
-                                    bet_automation.place_dual_bet(
-                                        game_id=game_id,
-                                        issue_number=next_issue
-                                    )
-                                )
-                            await self._broadcast_hack_signal(game_id, next_issue, active_channels)
-                            pred_data = {
-                                "issue": next_issue,
-                                "choice": "CONFIRMED",
-                                "numbers": [],
-                                "confidence": 100,
-                                "pattern_name": "SureShot Hack",
-                                "created_at": datetime.utcnow().isoformat()
-                            }
-                        else:
-                            logger.info(f"[{game_name}] New Signal for {next_issue}: {pred_data['choice']} Numbers: {pred_data['numbers']} ({pred_data['confidence']}%)")
-                            current_martingale_level = max([ch.get("current_level", 1) for ch in active_channels], default=1)
+                        current_martingale_level = max([ch.get("current_level", 1) for ch in active_channels], default=1)
 
-                            if bet_automation.enabled and bet_automation.is_logged_in:
-                                first_num = pred_data["numbers"][0] if pred_data.get("numbers") else None
-                                asyncio.create_task(
-                                    bet_automation.place_bet(
-                                        game_id=game_id,
-                                        choice=pred_data["choice"],
-                                        issue_number=next_issue,
-                                        level=current_martingale_level,
-                                        confidence=pred_data.get("confidence", 98.7),
-                                        number=first_num
-                                    )
+                        # Place real bet in Playwright headless browser
+                        if bet_automation.enabled and bet_automation.is_logged_in:
+                            first_num = pred_data["numbers"][0] if pred_data.get("numbers") else None
+                            asyncio.create_task(
+                                bet_automation.place_bet(
+                                    game_id=game_id,
+                                    choice=pred_data["choice"],
+                                    issue_number=next_issue,
+                                    level=current_martingale_level,
+                                    confidence=pred_data.get("confidence", 98.7),
+                                    number=first_num
                                 )
-                            await self._broadcast_prediction(game_id, pred_data, active_channels)
+                            )
+
+                        # Send individual prediction message to channels
+                        await self._broadcast_prediction(game_id, pred_data, active_channels)
 
                         state["active_prediction"] = pred_data
                         state["waiting_result"] = True
@@ -649,29 +602,6 @@ class WinGoScheduler:
                 logger.error(f"[{game_name}] Loop error: {e}", exc_info=True)
 
             await asyncio.sleep(poll_interval)
-
-    async def _broadcast_hack_signal(self, game_id: str, issue_number: str, channels: list):
-        game_cfg = config.WINGO_GAMES[game_id]
-        game_name = game_cfg["name"]
-        custom_tpl = db_manager.get_hack_signal_template()
-        text = render_hack_signal_card(game_name, issue_number, custom_tpl)
-
-        send_apk = db_manager.get_hack_send_apk()
-        apk_file_id = db_manager.get_apk_file_id()
-        apk_caption = db_manager.get_apk_caption()
-
-        for ch in channels:
-            channel_id = ch["channel_id"]
-            try:
-                ok = await self._safe_send_message(ch, text)
-                if ok:
-                    logger.info(f"✅ SureShot Hack signal posted to channel {channel_id}")
-                if send_apk and apk_file_id:
-                    await asyncio.sleep(0.5)
-                    await self._safe_send_document(channel_id, apk_file_id, apk_caption)
-                    logger.info(f"📱 Sent VIP APK with signal to channel {channel_id}")
-            except Exception as e:
-                logger.error(f"❌ Error broadcasting hack signal to {channel_id}: {e}", exc_info=True)
 
     async def _broadcast_prediction(self, game_id: str, pred_data: dict, channels: list):
         """Sends a brand new individual prediction message to all subscribed channels"""
@@ -738,10 +668,6 @@ class WinGoScheduler:
                 if curr_level > self.active_session["max_level_used"]:
                     self.active_session["max_level_used"] = curr_level
 
-            is_hack_mode = db_manager.is_hack_strategy()
-            if is_hack_mode:
-                is_win = True  # Dual bet guarantees a win every single round!
-
             try:
                 if is_win:
                     # 1. Auto-Clean previous loss notifications if enabled
@@ -752,6 +678,17 @@ class WinGoScheduler:
                                 await self.bot.delete_message(chat_id=channel_id, message_id=m_id)
                             except Exception:
                                 pass
+
+                    win_text = render_win_card(
+                        game_name=game_name,
+                        issue_number=issue_number,
+                        actual_choice=actual_choice,
+                        actual_number=actual_number,
+                        level=curr_level,
+                        streak=streak,
+                        hit_lucky_number=hit_lucky_number,
+                        custom_template=custom_win_tpl
+                    )
 
                     # Real Playwright screenshot of the actual Congratulations popup with 8.5s timeout
                     try:
@@ -770,57 +707,40 @@ class WinGoScheduler:
                         logger.warning(f"Screenshot delivery fallback: {s_err}")
                         screenshot_stream = None
 
-                    if is_hack_mode:
-                        # SureShot Hack Mode:
-                        # Caption: if set, send with caption; if blank/None, send ONLY raw photo!
-                        hack_caption = db_manager.get_hack_win_caption() or ""
-                        if screenshot_stream:
-                            raw_bytes = screenshot_stream.getvalue()
-                            await self._safe_send_photo(ch, raw_bytes, hack_caption)
-                        elif hack_caption:
-                            await self._safe_send_message(ch, hack_caption)
-
-                        # Send configured win celebratory stickers
-                        win_stks = db_manager.get_win_stickers()
-                        if win_stks:
-                            await asyncio.sleep(0.5)
-                            for s_id in win_stks:
-                                await self._safe_send_sticker(channel_id, s_id)
-                                await asyncio.sleep(0.4)
+                    if screenshot_stream:
+                        raw_bytes = screenshot_stream.getvalue()
+                        await self._safe_send_photo(ch, raw_bytes, win_text)
                     else:
-                        # Standard Mode
-                        win_text = render_win_card(
-                            game_name=game_name,
-                            issue_number=issue_number,
-                            actual_choice=actual_choice,
-                            actual_number=actual_number,
-                            level=curr_level,
-                            streak=streak,
-                            hit_lucky_number=hit_lucky_number,
-                            custom_template=custom_win_tpl
-                        )
-                        if screenshot_stream:
-                            raw_bytes = screenshot_stream.getvalue()
-                            await self._safe_send_photo(ch, raw_bytes, win_text)
-                        else:
-                            await self._safe_send_message(ch, win_text)
+                        await self._safe_send_message(ch, win_text)
 
-                        # Auto-send VIP APK on WIN if enabled
-                        auto_send = db_manager.get_auto_send_apk()
-                        apk_file_id = db_manager.get_apk_file_id()
-                        if auto_send and apk_file_id:
-                            apk_caption = db_manager.get_apk_caption()
+                    # Auto-send VIP APK on WIN if enabled
+                    auto_send = db_manager.get_auto_send_apk()
+                    apk_file_id = db_manager.get_apk_file_id()
+                    logger.info(f"📱 Checking auto-send APK: enabled={auto_send}, has_file={bool(apk_file_id)}")
+                    if auto_send and apk_file_id:
+                        apk_caption = db_manager.get_apk_caption()
+                        try:
+                            await asyncio.sleep(1.0)
+                            await self.bot.send_document(
+                                chat_id=channel_id,
+                                document=apk_file_id,
+                                caption=apk_caption,
+                                parse_mode=ParseMode.HTML if apk_caption else None
+                            )
+                            logger.info(f"📱 Sent VIP APK to channel {channel_id} after WIN!")
+                        except Exception as apk_err:
+                            logger.warning(f"Failed to auto-send APK with HTML: {apk_err}, retrying plain text...")
                             try:
-                                await asyncio.sleep(1.0)
+                                import re
+                                plain_caption = re.sub(r"<[^>]+>", "", apk_caption) if apk_caption else None
                                 await self.bot.send_document(
                                     chat_id=channel_id,
                                     document=apk_file_id,
-                                    caption=apk_caption,
-                                    parse_mode=ParseMode.HTML if apk_caption else None
+                                    caption=plain_caption
                                 )
-                                logger.info(f"📱 Sent VIP APK to channel {channel_id} after WIN!")
-                            except Exception as apk_err:
-                                logger.warning(f"Failed to auto-send APK: {apk_err}")
+                                logger.info(f"📱 Sent VIP APK to channel {channel_id} (plain-text) after WIN!")
+                            except Exception as apk_err2:
+                                logger.error(f"Failed to auto-send APK to {channel_id}: {apk_err2}", exc_info=True)
                 else:
                     # Anti-Loss Clutter: Only broadcast loss card up to configured max level (e.g. 2 or 3)
                     if curr_level <= max_loss_cards:

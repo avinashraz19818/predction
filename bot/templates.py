@@ -31,10 +31,6 @@ DEFAULT_LOSS_TEMPLATE = """{warning} <b>𝗟𝗘𝗩𝗘𝗟 {curr_level} 𝗠�
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 {target} <i>Next prediction incoming immediately...</i>"""
 
-DEFAULT_HACK_SIGNAL_TEMPLATE = """Period Number👉 {issue_short}
-1000% Confirm sure shot prediction in Hack
-Install Karo⬇️"""
-
 DEFAULT_PRE_SESSION_TEMPLATE = """{warning} <b>𝗩𝗜𝗣 𝗣𝗥𝗘𝗗𝗜𝗖𝗧𝗜𝗢𝗡 𝗦𝗘𝗦𝗦𝗜𝗢𝗡 𝗔𝗟𝗘𝗥𝗧</b> {warning}
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 {clock} <b>𝗦𝗲𝘀𝘀𝗶𝗼𝗻:</b> <b>{session_name}</b>
@@ -226,31 +222,6 @@ def render_prediction_card(
 {lightning} <i>Pattern: {pattern_name}</i>
 {money} <i>{promo_clean}</i>"""
     return msg
-
-def render_hack_signal_card(
-    game_name: str,
-    issue_number: str,
-    custom_template: Optional[str] = None
-) -> str:
-    """
-    Renders Sure-Shot Hack promotional signal card without BIG/SMALL text.
-    Replaces {issue_short} (e.g. 980), {issue}, {game_name}, and premium emojis.
-    """
-    issue_str = str(issue_number).strip()
-    issue_short = issue_str[-3:] if len(issue_str) >= 3 else issue_str
-
-    tpl = custom_template.strip() if custom_template and custom_template.strip() else DEFAULT_HACK_SIGNAL_TEMPLATE
-
-    txt = tpl
-    txt = txt.replace("{issue_short}", issue_short)
-    txt = txt.replace("{issue}", issue_str)
-    txt = txt.replace("{game_name}", game_name)
-
-    # Replace premium emoji tokens if present
-    for k, v in PREMIUM_EMOJIS.items():
-        txt = txt.replace(f"{{{k}}}", v)
-
-    return txt
 
 def render_win_card(
     game_name: str,

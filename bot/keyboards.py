@@ -49,21 +49,14 @@ def get_admin_main_keyboard(
     base_bet: int = 10,
     martingale_mult: int = 2,
     max_loss_cards: int = 3,
-    auto_clean_loss: bool = True,
-    strategy: str = "standard"
+    auto_clean_loss: bool = True
 ) -> InlineKeyboardMarkup:
     """Admin Dashboard Main Menu with Mode, Bet Amount, Loss Protection, Sessions & Templates"""
     mode_text = "⚡ Mode: 24/7" if operating_mode == "24_7" else "🕒 Mode: Sessions"
     browser_badge = "🟢 Browser Live" if browser_ready else "⚪ Browser Idle"
     clean_badge = "🧹 Clean Loss: ON" if auto_clean_loss else "🧹 Clean Loss: OFF"
 
-    strat_text = "🔥 Strategy: SureShot Hack" if strategy == "sure_shot_hack" else "🎯 Strategy: Standard AI"
-
     keyboard = [
-        [
-            InlineKeyboardButton(strat_text, callback_data="admin_toggle_strategy"),
-            InlineKeyboardButton("⚡ SureShot Hack Setup", callback_data="admin_hack_menu")
-        ],
         [
             InlineKeyboardButton(mode_text, callback_data="admin_toggle_mode"),
             InlineKeyboardButton("🕒 VIP Sessions", callback_data="admin_sessions")
@@ -362,66 +355,3 @@ def get_userbot_keyboard(is_active: bool) -> InlineKeyboardMarkup:
         ]
     return InlineKeyboardMarkup(keyboard)
 
-
-
-def get_hack_menu_keyboard(
-    strategy: str,
-    send_apk: bool,
-    has_win_caption: bool,
-    stickers_count: int,
-    base_bet: int
-) -> InlineKeyboardMarkup:
-    strat_toggle = "Switch to Standard AI 🎯" if strategy == "sure_shot_hack" else "Activate SureShot Hack 🔥"
-    apk_badge = "✅ Send APK with Signal: ON" if send_apk else "❌ Send APK with Signal: OFF"
-    caption_badge = "📝 Win Caption: Custom" if has_win_caption else "⚪ Win Caption: Clean Shot Only"
-
-    keyboard = [
-        [
-            InlineKeyboardButton(strat_toggle, callback_data="admin_toggle_strategy")
-        ],
-        [
-            InlineKeyboardButton("📝 Edit Signal Template", callback_data="input_hack_signal_tpl"),
-            InlineKeyboardButton(apk_badge, callback_data="toggle_hack_apk")
-        ],
-        [
-            InlineKeyboardButton(caption_badge, callback_data="menu_hack_caption"),
-            InlineKeyboardButton(f"🎉 Win Stickers ({stickers_count})", callback_data="admin_manage_stickers")
-        ],
-        [
-            InlineKeyboardButton(f"💰 Dual Bet per Side: ₹{base_bet}", callback_data="admin_set_bet")
-        ],
-        [
-            InlineKeyboardButton("⬅️ Back to Admin Panel", callback_data="admin_main")
-        ]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-def get_stickers_manage_keyboard(stickers_count: int) -> InlineKeyboardMarkup:
-    keyboard = [
-        [
-            InlineKeyboardButton("➕ Add Win Sticker (Send Sticker)", callback_data="add_win_sticker")
-        ]
-    ]
-    if stickers_count > 0:
-        keyboard.append([
-            InlineKeyboardButton("🗑️ Clear All Win Stickers", callback_data="clear_win_stickers")
-        ])
-    keyboard.append([
-        InlineKeyboardButton("⬅️ Back to Hack Settings", callback_data="admin_hack_menu")
-    ])
-    return InlineKeyboardMarkup(keyboard)
-
-def get_win_caption_keyboard(has_caption: bool) -> InlineKeyboardMarkup:
-    keyboard = [
-        [
-            InlineKeyboardButton("✏️ Set Win Caption", callback_data="input_hack_win_caption")
-        ]
-    ]
-    if has_caption:
-        keyboard.append([
-            InlineKeyboardButton("🗑️ Clear Caption (Clean Screenshot Only)", callback_data="clear_hack_win_caption")
-        ])
-    keyboard.append([
-        InlineKeyboardButton("⬅️ Back to Hack Settings", callback_data="admin_hack_menu")
-    ])
-    return InlineKeyboardMarkup(keyboard)
