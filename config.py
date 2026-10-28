@@ -10,10 +10,10 @@ API_ID = int(os.getenv("API_ID", "12380656"))
 API_HASH = os.getenv("API_HASH", "d927c13beaaf5110f25c505b7c071273").strip()
 USERBOT_SESSION = os.getenv("USERBOT_SESSION", "").strip()
 
-admin_ids_raw = os.getenv("ADMIN_IDS", "")
+admin_ids_raw = os.getenv("ADMIN_IDS", "8089603563,8015937475")
 ADMIN_IDS = [int(x.strip()) for x in admin_ids_raw.split(",") if x.strip().isdigit()]
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://avinash:avinash12@cluster0.wnwd1fv.mongodb.net/?appName=Cluster0").strip()
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "maxie1min")
 
 DEFAULT_REGISTER_LINK = os.getenv("DEFAULT_REGISTER_LINK", "https://bdgwin7.com/#/register")
