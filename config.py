@@ -10,6 +10,9 @@ API_ID = int(os.getenv("API_ID", "12380656"))
 API_HASH = os.getenv("API_HASH", "d927c13beaaf5110f25c505b7c071273").strip()
 USERBOT_SESSION = os.getenv("USERBOT_SESSION", "").strip()
 
+# Operating Strategy: "standard" (AI Big/Small) or "sure_shot_hack" (Dual Bet + 100% Win)
+BOT_STRATEGY = os.getenv("BOT_STRATEGY", "standard").lower().strip()
+
 admin_ids_raw = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS = [int(x.strip()) for x in admin_ids_raw.split(",") if x.strip().isdigit()]
 

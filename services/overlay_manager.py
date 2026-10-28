@@ -20,7 +20,7 @@ ZAYRO_CSS = """
 
 #zayro-vip-overlay {
   position: fixed !important;
-  top: 14px !important;
+  top: 125px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   z-index: 2147483647 !important;
@@ -638,11 +638,18 @@ class OverlayManager:
                 return rendered
 
         choice_clean = choice.strip().upper()
-        outcome_class = "big" if choice_clean == "BIG" else "small"
-        ball = cls.get_ball_info(number, choice_clean)
+        if choice_clean in ("CONFIRMED", "SURE_SHOT", "WIN", "HACK", ""):
+            outcome_class = "big"
+            main_badge_text = "CONFIRMED WIN"
+            conf_str = "100%"
+        else:
+            outcome_class = "big" if choice_clean == "BIG" else "small"
+            main_badge_text = choice_clean
+            conf_str = f"{float(confidence):.1f}%" if float(confidence) > 0 else "98.8%"
+
+        ball = cls.get_ball_info(number, "BIG" if outcome_class == "big" else "SMALL")
         ball_b64 = cls.get_ball_b64(ball["number"])
         short_issue = str(issue)[-5:] if len(str(issue)) > 5 else str(issue)
-        conf_str = f"{float(confidence):.1f}%" if float(confidence) > 0 else "98.8%"
         hist_chips_html = cls.render_hist_chips(ball["number"])
 
         ball_img_html = f'<img class="ball-bg-img" id="ballBgImg" src="{ball_b64}" alt="Casino Chip">' if ball_b64 else ''
@@ -693,7 +700,7 @@ class OverlayManager:
                   <!-- Left: 3D Outcome Ingot -->
                   <div class="res-outcome-ingot {outcome_class}" id="resBsBadge">
                     <div class="ingot-top-tag">&#9733; AI VERDICT &#9733;</div>
-                    <div class="ingot-main-text" id="resBsText">{choice_clean}</div>
+                    <div class="ingot-main-text" id="resBsText">{main_badge_text}</div>
                     <div class="ingot-conf-pill">
                       <span class="conf-dot"></span>
                       <span id="resConfText">CONF: {conf_str}</span>

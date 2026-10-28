@@ -521,6 +521,18 @@ class PlaywrightWinGoWorker:
                 container.style.display = 'block';
                 container.style.visibility = 'visible';
                 container.style.opacity = '1';
+
+                // Dynamic popup docking: move overlay down touching or slightly overlapping popup
+                try {
+                    const popup = document.querySelector('.van-dialog, .van-popup, [class*="congratulation"], [class*="win-box"], [class*="Win-Popup"]');
+                    if (popup && popup.offsetParent !== null) {
+                        const rect = popup.getBoundingClientRect();
+                        const ovH = container.offsetHeight || 180;
+                        container.style.top = Math.max(40, Math.round(rect.top - ovH + 30)) + 'px';
+                    } else {
+                        container.style.top = '125px';
+                    }
+                } catch(e) {}
             }""", {"html": card_html, "css": ZAYRO_CSS})
 
             logger.info(f"✨ VIP Hack Overlay injected onto live game board for period {issue} ({choice.upper()})!")
@@ -777,6 +789,86 @@ class PlaywrightWinGoWorker:
 
             except Exception as e:
                 logger.error(f"Error placing bet for {game_id}: {e}")
+                return {"ok": False, "reason": str(e)}
+
+    async def place_dual_bet(
+        self,
+        game_id: str,
+        issue_number: str = "",
+        amount: Optional[int] = None,
+        confidence: float = 99.8
+    ) -> dict:
+        """
+        Sure-Shot Hack Mode:
+        Places real in-game bets on BOTH Big AND Small with the configured amount.
+        Guarantees that ONE outcome will win, triggering the real Congratulations Win popup!
+        """
+        async with self._lock:
+            if not self.is_ready or not self.page:
+                logger.warning("Browser not ready for dual bet.")
+                return {"ok": False, "reason": "browser_not_ready"}
+
+            try:
+                await self.dismiss_announcements()
+
+                from database import db_manager
+                bet_amount = amount if amount is not None else db_manager.get_base_bet_amount()
+                if bet_amount <= 0:
+                    bet_amount = 10
+
+                logger.info(f"⚡ Placing DUAL BET (Big AND Small) of ₹{bet_amount} each for period {issue_number}...")
+
+                # 1. Place Bet on BIG
+                big_locator = self.page.locator(
+                    "button:has-text('Big'), div:has-text('Big'):not(:has(div)), .Betting__C-foot-b, .bet-btn-big"
+                ).first
+                if await big_locator.is_visible(timeout=3000):
+                    await big_locator.click(force=True)
+                    await asyncio.sleep(0.4)
+                    await self.set_bet_amount(bet_amount)
+                    await asyncio.sleep(0.3)
+                    confirm_btn = self.page.locator(BET_CONFIRM_SELECTOR).first
+                    if await confirm_btn.is_visible(timeout=3000):
+                        await confirm_btn.click()
+                        logger.info(f"✅ Bet 1/2 placed: BIG ₹{bet_amount} for {issue_number}")
+                    await asyncio.sleep(0.6)
+
+                # 2. Place Bet on SMALL
+                small_locator = self.page.locator(
+                    "button:has-text('Small'), div:has-text('Small'):not(:has(div)), .Betting__C-foot-s, .bet-btn-small"
+                ).first
+                if await small_locator.is_visible(timeout=3000):
+                    await small_locator.click(force=True)
+                    await asyncio.sleep(0.4)
+                    await self.set_bet_amount(bet_amount)
+                    await asyncio.sleep(0.3)
+                    confirm_btn = self.page.locator(BET_CONFIRM_SELECTOR).first
+                    if await confirm_btn.is_visible(timeout=3000):
+                        await confirm_btn.click()
+                        logger.info(f"✅ Bet 2/2 placed: SMALL ₹{bet_amount} for {issue_number}")
+                    await asyncio.sleep(0.5)
+
+                # Inject floating VIP Hack overlay docked to popup location
+                await self.inject_prediction_overlay(
+                    issue=issue_number,
+                    choice="CONFIRMED",
+                    confidence=confidence,
+                    level=1
+                )
+
+                # Start draw watcher - guaranteed win will be caught!
+                asyncio.create_task(self.watch_and_capture_win_popup(
+                    target_issue=str(issue_number),
+                    choice="CONFIRMED",
+                    level=1,
+                    confidence=confidence,
+                    game_id=game_id
+                ))
+
+                return {"ok": True, "dual_bet": True, "issue": issue_number, "amount": bet_amount}
+
+            except Exception as e:
+                logger.error(f"Error placing dual bet for {game_id}: {e}")
                 return {"ok": False, "reason": str(e)}
 
     async def capture_board_screenshot(self, game_id: str = "wingo_1m") -> Optional[io.BytesIO]:

@@ -100,6 +100,12 @@ class DatabaseManager:
                     "apk_file_name": "ZayroVipHack.apk",
                     "apk_caption": None,
                     "userbot_session": getattr(config, "USERBOT_SESSION", None) or None,
+                    "bot_strategy": getattr(config, "BOT_STRATEGY", "standard"),
+                    "tpl_hack_signal": None,
+                    "hack_send_apk": True,
+                    "hack_win_caption": None,
+                    "win_stickers": [],
+                    "hack_dual_bet_amount": getattr(config, "DEMO_BET_AMOUNT", 10),
                     "updated_at": datetime.utcnow()
                 }
                 self.db.settings.insert_one(initial)
@@ -127,6 +133,18 @@ class DatabaseManager:
                     doc["apk_file_name"] = "ZayroVipHack.apk"
                 if "apk_caption" not in doc:
                     doc["apk_caption"] = "📥 <b>VIP Mod APK</b> — Download & Win Every Round!"
+                if "bot_strategy" not in doc:
+                    doc["bot_strategy"] = getattr(config, "BOT_STRATEGY", "standard")
+                if "tpl_hack_signal" not in doc:
+                    doc["tpl_hack_signal"] = None
+                if "hack_send_apk" not in doc:
+                    doc["hack_send_apk"] = True
+                if "hack_win_caption" not in doc:
+                    doc["hack_win_caption"] = None
+                if "win_stickers" not in doc:
+                    doc["win_stickers"] = []
+                if "hack_dual_bet_amount" not in doc:
+                    doc["hack_dual_bet_amount"] = doc.get("base_bet_amount", 10)
                 if isinstance(doc.get("custom_html_template"), str) and len(doc["custom_html_template"]) > 500:
                     doc["custom_html_template"] = "uploads/custom_overlay.html"
                 self._memory_settings = doc
@@ -340,6 +358,64 @@ class DatabaseManager:
     def set_userbot_session(self, session_str: Optional[str]):
         val = str(session_str).strip() if session_str else None
         self.update_system_settings({"userbot_session": val})
+
+    # ================= STRATEGY & SURE-SHOT HACK MODE =================
+
+    def get_bot_strategy(self) -> str:
+        cfg = self.get_system_settings()
+        return str(cfg.get("bot_strategy", getattr(config, "BOT_STRATEGY", "standard"))).lower()
+
+    def set_bot_strategy(self, strategy: str) -> str:
+        s = "sure_shot_hack" if "hack" in str(strategy).lower() or "sure" in str(strategy).lower() else "standard"
+        self.update_system_settings({"bot_strategy": s})
+        return s
+
+    def is_hack_strategy(self) -> bool:
+        return self.get_bot_strategy() == "sure_shot_hack"
+
+    def get_hack_signal_template(self) -> Optional[str]:
+        cfg = self.get_system_settings()
+        tpl = cfg.get("tpl_hack_signal")
+        return str(tpl).strip() if tpl and str(tpl).strip() else None
+
+    def set_hack_signal_template(self, tpl: Optional[str]) -> Optional[str]:
+        val = str(tpl).strip() if tpl and str(tpl).strip() else None
+        self.update_system_settings({"tpl_hack_signal": val})
+        return val
+
+    def get_hack_send_apk(self) -> bool:
+        cfg = self.get_system_settings()
+        return bool(cfg.get("hack_send_apk", True))
+
+    def set_hack_send_apk(self, enabled: bool) -> bool:
+        self.update_system_settings({"hack_send_apk": bool(enabled)})
+        return bool(enabled)
+
+    def get_hack_win_caption(self) -> Optional[str]:
+        cfg = self.get_system_settings()
+        cap = cfg.get("hack_win_caption")
+        return str(cap).strip() if cap and str(cap).strip() else None
+
+    def set_hack_win_caption(self, caption: Optional[str]) -> Optional[str]:
+        val = str(caption).strip() if caption and str(caption).strip() else None
+        self.update_system_settings({"hack_win_caption": val})
+        return val
+
+    def get_win_stickers(self) -> list:
+        cfg = self.get_system_settings()
+        return list(cfg.get("win_stickers", []))
+
+    def add_win_sticker(self, sticker_id: str) -> list:
+        stickers = self.get_win_stickers()
+        s_id = str(sticker_id).strip()
+        if s_id and s_id not in stickers:
+            stickers.append(s_id)
+            self.update_system_settings({"win_stickers": stickers})
+        return stickers
+
+    def clear_win_stickers(self) -> list:
+        self.update_system_settings({"win_stickers": []})
+        return []
 
     def get_sessions(self) -> list:
         cfg = self.get_system_settings()

@@ -48,6 +48,21 @@ class BetAutomationService:
         )
         return res.get("ok", False)
 
+    async def place_dual_bet(
+        self,
+        game_id: str,
+        issue_number: str = "",
+        amount: Optional[int] = None,
+        confidence: float = 99.8
+    ) -> bool:
+        res = await self.worker.place_dual_bet(
+            game_id=game_id,
+            issue_number=issue_number,
+            amount=amount,
+            confidence=confidence
+        )
+        return res.get("ok", False)
+
     async def capture_win_screenshot(
         self,
         game_id: str,
